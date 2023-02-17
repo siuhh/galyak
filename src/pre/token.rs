@@ -82,6 +82,7 @@ pub const STATIC_TOKENS: &[TokenType] = &[
     FALSE,
     NULL,
 ];
+#[derive(Clone)]
 pub struct Token {
     pub name: TokenType,
     pub val: String,
@@ -99,7 +100,6 @@ impl Token {
         };
     }
 }
-
 impl Display for Token {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write!(

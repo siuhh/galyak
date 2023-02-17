@@ -1,4 +1,4 @@
-use crate::error_mgr::Caller;
+use crate::error_mgr::ErrorCaller;
 
 use super::token::{
     self,
@@ -12,8 +12,8 @@ pub struct Lexer<'a> {
     curr_char: char,
     curr_line: usize,
     line_char: usize,
-    error_caller: &'a Caller,
-    current_token: Token,
+    error_caller: &'a ErrorCaller,
+    pub current_token: Token,
 }
 
 fn is_ariphmetic_op(ch: &char) -> bool {
@@ -25,7 +25,7 @@ fn is_symbol(ch: &char) -> bool {
 }
 
 impl<'a> Lexer<'a> {
-    pub fn new(file: &'static str, caller: &'a Caller) -> Lexer<'a> {
+    pub fn new(file: &'static str, caller: &'a ErrorCaller) -> Lexer<'a> {
         let mut lexer = Lexer {
             file: file,
             pos: 0,
@@ -33,7 +33,12 @@ impl<'a> Lexer<'a> {
             curr_line: 1,
             line_char: 1,
             error_caller: caller,
-            current_token: UNKNOWN,
+            current_token: Token {
+                name: UNKNOWN,
+                val: "token read before inititalization".to_string(),
+                line: 0,
+                ch: 0,
+            },
         };
 
         //init first char
@@ -126,7 +131,12 @@ impl<'a> Lexer<'a> {
             str_val.push(self.curr_char);
             self.advance();
             if self.eof() || self.curr_char == '\n' {
-                //TODO: call unmatched quote error
+                self.error_caller.unmatched_quote(&self.tok_inst(
+                    l,
+                    c,
+                    tokens::dynamic::STR,
+                    str_val.to_string(),
+                ));
                 break;
             }
         }
@@ -202,11 +212,14 @@ impl<'a> Lexer<'a> {
             );
         }
 
-        return self.tok_inst(
+        let ut = self.tok_inst(
             self.curr_line,
             self.line_char,
             tokens::dynamic::UNKNOWN,
             String::from(curr),
         );
+
+        self.error_caller.unknown_token(&ut);
+        return ut;
     }
 }

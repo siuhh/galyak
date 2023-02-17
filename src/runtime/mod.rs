@@ -1,5 +1,3 @@
-pub mod constructions;
+mod memory;
 pub mod parser;
-pub mod prog;
-pub mod types;
-pub mod var;
+pub mod interpreter;

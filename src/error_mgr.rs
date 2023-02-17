@@ -1,17 +1,14 @@
 use crate::pre::token::Token;
 use colored::Colorize;
 
-pub struct Caller {
+pub struct ErrorCaller {
     file_name: String,
     file: &'static str,
 }
 
-impl Caller {
-    pub fn new(file_name: String, file: &'static str) -> Caller {
-        return Caller {
-            file,
-            file_name,
-        };
+impl ErrorCaller {
+    pub fn new(file_name: String, file: &'static str) -> ErrorCaller {
+        return ErrorCaller { file, file_name };
     }
     fn sub_str(&self, message: &str, start: usize, end: usize) -> String {
         if end > message.chars().count() {
@@ -69,23 +66,28 @@ impl Caller {
         }
         println!("{}", message.red());
     }
-    pub fn call(&self, message: String, token: Token) {
+    pub fn call(&self, message: String, token: &Token) {
         let ln = token.line;
         let ch = token.ch - 1;
 
         self.pr_err_head(ln, ch, &message);
         self.pr_err_line(ln, ch, token.val.chars().count());
         self.pr_message(ch, token.val.chars().count(), message);
+
+        std::process::exit(0);
     }
 
-    pub fn unexpected_token(&self, t: Token) {
-        let mut msg = String::from("якийсь кучерявий базар \"");
-        msg.push_str(&t.val);
-        msg.push('\"');
+    pub fn unknown_token(&self, t: &Token) {
+        let msg = format!("якийсь кучерявий базар \"{}\", не викупив", t.val);
         self.call(msg, t);
     }
 
-    pub fn unmatched_quote(&self, t: Token) {
+    pub fn unexpected_token(&self, t: &Token) {
+        let msg = format!("кучерявий базар \"{}\", який має бути точно не тут", t.val);
+        self.call(msg, t);
+    }
+
+    pub fn unmatched_quote(&self, t: &Token) {
         let msg = String::from("не закрита \"");
         self.call(msg, t);
     }
