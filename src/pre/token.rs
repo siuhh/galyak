@@ -28,13 +28,13 @@ pub mod tokens {
         //declatarions
         pub const FUNC: TokenType = "тємка";
         pub const RET_RYPE: TokenType = "нарішає";
-        pub const CLASS: TokenType = "штріх";
-        pub const ARRAY: TokenType = "штріхи";
+        pub const CLASS: TokenType = "тіпуля";
 
         pub const CALL: TokenType = "мутись";
 
         //variables
-        pub const VAR: TokenType = "тіп";
+        pub const VAR: TokenType = "штріх";
+        pub const ARRAY: TokenType = "штріхи";
         pub const SET: TokenType = "=";
         pub const GET: TokenType = "дай";
 
@@ -85,18 +85,18 @@ pub const STATIC_TOKENS: &[TokenType] = &[
 #[derive(Clone)]
 pub struct Token {
     pub name: TokenType,
-    pub val: String,
+    pub value: String,
     pub line: usize,
-    pub ch: usize,
+    pub on_char: usize,
 }
 
 impl Token {
     pub fn new(name: TokenType, val: String, line: usize, ch: usize) -> Token {
         return Token {
             name,
-            val,
+            value: val,
             line,
-            ch,
+            on_char: ch,
         };
     }
 }
@@ -105,7 +105,7 @@ impl Display for Token {
         write!(
             f,
             "{}:{} {} \"{}\"",
-            self.line, self.ch, self.name, self.val,
+            self.line, self.on_char, self.name, self.value,
         )
     }
 }

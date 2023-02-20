@@ -66,29 +66,39 @@ impl ErrorCaller {
         }
         println!("{}", message.red());
     }
-    pub fn call(&self, message: String, token: &Token) {
+    pub fn call(&self, message: String, token: &Token, panic: bool) {
         let ln = token.line;
-        let ch = token.ch - 1;
+        let ch = token.on_char - 1;
 
         self.pr_err_head(ln, ch, &message);
-        self.pr_err_line(ln, ch, token.val.chars().count());
-        self.pr_message(ch, token.val.chars().count(), message);
-
+        self.pr_err_line(ln, ch, token.value.chars().count());
+        self.pr_message(ch, token.value.chars().count(), message);
         std::process::exit(0);
+        panic!();
     }
 
     pub fn unknown_token(&self, t: &Token) {
-        let msg = format!("якийсь кучерявий базар \"{}\", не викупив", t.val);
-        self.call(msg, t);
+        let msg = format!("якийсь кучерявий базар \"{}\", не викупив", t.value);
+        self.call(msg, t, false);
     }
 
     pub fn unexpected_token(&self, t: &Token) {
-        let msg = format!("кучерявий базар \"{}\", який має бути точно не тут", t.val);
-        self.call(msg, t);
+        let msg = format!("кучерявий базар \"{}\", який має бути точно не тут", t.value);
+        self.call(msg, t, false);
     }
 
     pub fn unmatched_quote(&self, t: &Token) {
         let msg = String::from("не закрита \"");
-        self.call(msg, t);
+        self.call(msg, t, false);
+    }
+
+    pub fn unallowed_operation(&self, t: &Token, _type: &str) {
+        let msg = format!("якась кучерява операція для штріха масті {}", _type);
+        self.call(msg, t, false);
+    }
+    
+    pub fn inner_compilation_error(&self, t: &Token) {
+        let msg = String::from("внутрішня помилка");
+        self.call(msg, t, true);
     }
 }

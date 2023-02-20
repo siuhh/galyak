@@ -35,9 +35,9 @@ impl<'a> Lexer<'a> {
             error_caller: caller,
             current_token: Token {
                 name: UNKNOWN,
-                val: "token read before inititalization".to_string(),
+                value: "token read before inititalization".to_string(),
                 line: 0,
-                ch: 0,
+                on_char: 0,
             },
         };
 
