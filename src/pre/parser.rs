@@ -2,7 +2,6 @@ use core::panic;
 use std::collections::LinkedList;
 
 use crate::{
-    error_mgr::ErrorCaller,
     pre::{
         lexer::Lexer,
         token::{
@@ -12,32 +11,39 @@ use crate::{
             },
             Token, TokenType,
         },
-    },
+    }, error_mgr::ErrorCaller,
 };
-pub enum AST {
+//цю хуйню треба шоб помилки можна було викликати нормально 
+pub struct AstNode {
+    pub line: u16,//строка де знаходиться 
+    pub char: u16,//номер символу на строці 
+    pub value: Box<AstNodeValue>
+}
+pub enum AstNodeValue {
     Nothing,
     Num(f64),
-    Var(String),
+    Keyword(String),
     String(String),
     AriphExpression {
-        left: Box<AST>,  //NUMBER | VAR | ARIPH_EXPRESSION | STRING
+        left: AstNode,  //NUMBER | VAR | ARIPH_EXPRESSION | STRING
         op: Token,       //+ - / *
-        right: Box<AST>, //NUMBER | VAR | ARIPH_EXPRESSION | STRING
+        right: AstNode, //NUMBER | VAR | ARIPH_EXPRESSION | STRING
     },
     DecVar {
         array: bool,
-        name: Box<AST>,  // VAR
-        _type: Box<AST>, // VAR
-        value: Box<AST>,
+        name: AstNode,  // VAR
+        _type: AstNode, // VAR
+        value: AstNode, // NUMBER | STRING | BINOP
     },
     Statement {
-        statement: Box<AST>, // DecVar
+        line: usize,
+        statement: AstNode, // DecVar
     },
     StatementList {
-        statements: LinkedList<Box<AST>>, //Statement
+        statements: LinkedList<AstNode>, //Statement
     },
     CompoundStatement {
-        statements: LinkedList<Box<AST>>, //
+        statements: LinkedList<AstNode>, //
     },
 }
 pub struct Parser<'a> {
@@ -46,6 +52,9 @@ pub struct Parser<'a> {
     current_token: Token,
 }
 
+fn new_node(l: u16, ch: u16, value: AstNodeValue) -> AstNode {
+    return AstNode {line: l, char: ch, value: Box::new(value)} ;
+}
 impl<'a> Parser<'a> {
     pub fn new(file: &'static str, caller: &'a ErrorCaller) -> Parser<'a> {
         return Parser {
@@ -54,6 +63,7 @@ impl<'a> Parser<'a> {
             current_token: Token::new(UNKNOWN, "EMPTY TOKEN".to_string(), 0, 0),
         };
     }
+    
     fn eat(&mut self, tok: TokenType) {
         if self.current_token.name == tok {
             self.current_token = self.lexer.next_token();
@@ -64,21 +74,15 @@ impl<'a> Parser<'a> {
     }
 
     //factor : INTEGER | STRING | VAR | LEFT_PARENTHESIS expr RIGHT_PARENTHESIS
-    fn factor(&mut self) -> AST {
+    fn factor(&mut self) -> AstNode {
         let token = self.current_token.clone();
 
         if token.name == NUMBER {
             self.eat(NUMBER);
-            return AST::Num {
-                token,
-                value: token.value.parse::<f64>().unwrap(),
-            };
+            return new_node(token.line, token.on_char, AstNodeValue::Num(token.value.parse::<f64>().unwrap()));
         } else if token.name == NAME {
             self.eat(NAME);
-            return AST::Var {
-                token,
-                value: token.value,
-            };
+            return new_node(token.line, token.on_char, AstNodeValue::Keyword(token.value));
         } else if token.name == LEFT_PARENTHESIS {
             self.eat(LEFT_PARENTHESIS);
             let node = self.expr();
@@ -90,27 +94,32 @@ impl<'a> Parser<'a> {
         panic!();
     }
     //term   : factor ((MUL | DIV) factor)*
-    fn term(&mut self) -> AST {
+    fn term(&mut self) -> AstNode {
         let mut node = self.factor();
 
         while self.current_token.name == ARIPH_OP {
             let token = self.current_token.clone();
+            
             if token.value == "*" || token.value == "/" {
                 self.eat(ARIPH_OP);
             } else {
                 break;
             }
-            node = AST::AriphExpression {
-                left: Box::new(node),
+            
+            node = AstNode { 
+                line: self.current_token.line,
+                char: self.current_token.on_char,
+                value: AstNodeValue::AriphExpression {
+                left: node,
                 op: token,
-                right: Box::new(self.factor()),
+                right: self.factor(),
             };
-        }
+        }};
 
         return node;
     }
     //expr   : term ((PLUS | MINUS) term)*
-    fn expr(&mut self) -> AST {
+    fn expr(&mut self) -> AstNode {
         let mut node = self.term();
         while self.current_token.name == ARIPH_OP {
             let token = self.current_token.clone();
@@ -119,16 +128,16 @@ impl<'a> Parser<'a> {
             } else {
                 break;
             }
-            node = AST::AriphExpression {
-                left: Box::new(node),
+            node = new_node( AstNodeValue::AriphExpression {
+                left: node,
                 op: token,
-                right: Box::new(self.term()),
-            };
+                right: self.term(),
+            });
         }
         return node;
     }
     //dec_var   :  (штріх TYPE) | (штріхи TYPE) NAME = EXPR крч
-    pub fn dec_var(&mut self) -> AST {
+    pub fn dec_var(&mut self) -> AstNodeValue {
         let array = match self.current_token.name {
             ARRAY => {
                 self.eat(ARRAY);
@@ -151,21 +160,15 @@ impl<'a> Parser<'a> {
 
         let value = self.expr();
 
-        return AST::DecVar {
+        return AstNodeValue::DecVar {
             array,
-            name: Box::new(AST::Var {
-                value: name.value,
-                token: name,
-            }),
-            _type: Box::new(AST::Var {
-                value: name.value,
-                token: name,
-            }),
+            name: Box::new(AstNodeValue::Keyword(name.value)),
+            _type: Box::new(AstNodeValue::Keyword(name.value)),
             value: Box::new(value),
         };
     }
 
-    pub fn parse(&mut self) -> AST {
+    pub fn parse(&mut self) -> AstNodeValue {
         self.current_token = self.lexer.next_token();
         return self.dec_var();
     }

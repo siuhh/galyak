@@ -1,5 +1,1 @@
-use super::{var::Var};
-
-pub struct Memory {
-    
-}
+pub struct Memory {}

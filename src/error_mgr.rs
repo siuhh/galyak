@@ -98,7 +98,7 @@ impl ErrorCaller {
     }
     
     pub fn inner_compilation_error(&self, t: &Token) {
-        let msg = String::from("внутрішня помилка");
+        let msg = String::from("Якась залупа тут кароче закинь пж сюда https://github.com/siuhh/galyak/issues шо сталось");
         self.call(msg, t, true);
     }
 }

@@ -44,5 +44,6 @@ pub fn unexpected_token() {
 
     while t.name != EOF {
         t = l.next_token();
+        c
     }
 }

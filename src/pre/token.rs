@@ -86,12 +86,12 @@ pub const STATIC_TOKENS: &[TokenType] = &[
 pub struct Token {
     pub name: TokenType,
     pub value: String,
-    pub line: usize,
-    pub on_char: usize,
+    pub line: u16,
+    pub on_char: u16,
 }
 
 impl Token {
-    pub fn new(name: TokenType, val: String, line: usize, ch: usize) -> Token {
+    pub fn new(name: TokenType, val: String, line: u16, ch: u16) -> Token {
         return Token {
             name,
             value: val,
