@@ -10,8 +10,8 @@ pub struct Lexer<'a> {
     file: &'static str,
     pos: usize,
     curr_char: char,
-    curr_line: u16,
-    line_char: u16,
+    curr_line: usize,
+    line_char: usize,
     error_caller: &'a ErrorCaller,
     pub current_token: Token,
 }
@@ -73,7 +73,7 @@ impl<'a> Lexer<'a> {
         return self.curr_char == ' ' || self.curr_char == '\n' || self.curr_char == '\t';
     }
 
-    fn tok_inst(&self, line: u16, ch: u16, typ: TokenType, val: String) -> Token {
+    fn tok_inst(&self, line: usize, ch: usize, typ: TokenType, val: String) -> Token {
         return Token::new(typ, val, line, ch);
     }
 
