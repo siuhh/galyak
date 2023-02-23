@@ -1,3 +1,5 @@
-pub mod var;
-pub mod mem;
+pub mod layouts;
 pub mod arr;
+pub mod stack;
+mod class;
+mod heap;

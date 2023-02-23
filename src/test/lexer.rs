@@ -36,7 +36,7 @@ pub fn unmatched_quote() {
 pub fn unexpected_token() {
     const FILE: &str = "тіп цифри число = 55 крч
 базар(число + 92 / (32 + числ$о)) крч
-базар(\"12341234\") крч"; // here is unmatched quote
+базар(\"12341234\") крч";
     let c = ErrorCaller::new(String::from("тест.глк"), FILE);
     let mut l = Lexer::new(FILE, &c);
 

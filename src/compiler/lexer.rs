@@ -1,4 +1,4 @@
-use crate::error_mgr::ErrorCaller;
+use crate::error_mgr::CompilationError;
 
 use super::token::{
     self,
@@ -12,7 +12,7 @@ pub struct Lexer<'a> {
     curr_char: char,
     curr_line: usize,
     line_char: usize,
-    error_caller: &'a ErrorCaller,
+    error_caller: &'a CompilationError,
     pub current_token: Token,
 }
 
@@ -21,13 +21,13 @@ fn is_ariphmetic_op(ch: &char) -> bool {
 }
 
 fn is_symbol(ch: &char) -> bool {
-    return ['(', ')', '>', '=', '<', '!'].contains(ch);
+    return ['(', ')', '>', '=', '<', '!', ',' ].contains(ch);
 }
 
 impl<'a> Lexer<'a> {
-    pub fn new(file: &'static str, caller: &'a ErrorCaller) -> Lexer<'a> {
+    pub fn new(file: &'static str, caller: &'a CompilationError) -> Lexer<'a> {
         let mut lexer = Lexer {
-            file: file,
+            file,
             pos: 0,
             curr_char: '\0',
             curr_line: 1,
@@ -35,7 +35,7 @@ impl<'a> Lexer<'a> {
             error_caller: caller,
             current_token: Token {
                 name: UNKNOWN,
-                value: "token read before inititalization".to_string(),
+                value: "uninitialized".to_string(),
                 line: 0,
                 on_char: 0,
             },
@@ -86,7 +86,7 @@ impl<'a> Lexer<'a> {
         while !self.eof() && (self.curr_char.is_numeric() || self.curr_char == '.') {
             num.push(self.curr_char);
             self.advance();
-        }
+        } 
 
         return self.tok_inst(l, c, tokens::dynamic::NUMBER, num);
     }

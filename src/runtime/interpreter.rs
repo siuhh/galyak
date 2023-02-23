@@ -1,14 +1,13 @@
 use std::collections::LinkedList;
 
-use crate::{error_mgr::ErrorCaller, pre::parser::AstNodeValue};
+use crate::{compiler::parser::Ast};
 
-pub struct Interpreter<'a> {
-    pub error_caller: &'a ErrorCaller,
-    pub call_stack: LinkedList<AstNodeValue>,
+pub struct Interpreter {
+    pub call_stack: LinkedList<Ast>,
 }
-impl<'a> Interpreter<'a> {
-    pub fn new(error_caller: &ErrorCaller, call_stack: LinkedList<AstNodeValue>) -> Interpreter {
-        return Interpreter { error_caller, call_stack }
+impl Interpreter {
+    pub fn new(call_stack: LinkedList<Ast>) -> Interpreter {
+        return Interpreter { call_stack }
     }
     fn var_num(&self) -> f64 {
         return 22.0;
@@ -17,55 +16,53 @@ impl<'a> Interpreter<'a> {
         return "1488".to_string();
     }
 
-    fn ariph(&self, bin: AstNodeValue) -> f64 {
+    fn expression(&self, bin: Ast /*Expression*/) -> f64 {
         match bin {
-            AstNodeValue::Num { value, token } => value,
-            AstNodeValue::AriphExpression { left, op, right } => match op.value.as_str() {
-                "+" => self.ariph(*left) + self.ariph(*right),
-                "-" => self.ariph(*left) - self.ariph(*right),
-                "*" => self.ariph(*left) * self.ariph(*right),
-                "/" => self.ariph(*left) / self.ariph(*right),
+            Ast::Num(value) => value,
+            Ast::Expression { left, op, right } => match op.value.as_str() {
+                "+" => self.expression(*left) + self.expression(*right),
+                "-" => self.expression(*left) - self.expression(*right),
+                "*" => self.expression(*left) * self.expression(*right),
+                "/" => self.expression(*left) / self.expression(*right),
                 _ => panic!(),
             },
-            AstNodeValue::Var { value, token } => self.var_num(),
+            Ast::Keyword(_) => self.var_num(),
             _ => panic!(),
         }
     }
-    fn string(&self, str: AstNodeValue) -> String {
+    fn string(&self, str: Ast /*Expression*/) -> String {
         match str {
-            AstNodeValue::String { value, token } => value,
-            AstNodeValue::AriphExpression { left, op, right } => match op.value.as_str() {
+            Ast::String(value) => value,
+            Ast::Expression { left, op, right } => match op.value.as_str() {
                 "+" => self.string(*left) + self.string(*right).as_str(),
                 _ => {
-                    let AstNodeValue::String { token, value } = *left;
-                    self.error_caller.unallowed_operation(&token, "букви");
                     panic!();
                 }
             },
-            AstNodeValue::Var { value, token } => self.var_str(),
+            Ast::Keyword(_) => self.var_str(),
             _ => panic!(),
         }
     }
-    fn dec_var(&self, str: AstNodeValue) {
+    fn dec_var(&self, str: Ast) {
         match str {
-            AstNodeValue::DecVar {
+            Ast::DeclareVariable {
                 array,
                 name,
-                _type,
+                vtype,
                 value,
             } => {
                 println!(
-                "name: {}, _type: {}, value: {}, array: {}",
-                
-                if let AstNodeValue::Var { value, token } = *name { value } else {panic!()},
-                if let AstNodeValue::Var { value, token } = *_type { value } else {panic!()},
-                
-                self.ariph(*value),
+                "name: {}, vtype: {}, value: {}, array: {}",
+                name,
+                vtype,
+                self.expression(*value),
                 array
             )},
             _ => panic!(),
         };
     }
 
-    pub fn run(&self) {}
+    pub fn run(&self) {
+        
+    }
 }

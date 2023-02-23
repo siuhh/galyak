@@ -4,7 +4,7 @@ pub type TokenType = &'static str;
 
 pub mod tokens {
     pub mod dynamic {
-        use crate::pre::token::TokenType;
+        use crate::compiler::token::TokenType;
 
         pub const NUMBER: TokenType = "цифри";
         pub const ARIPH_OP: TokenType = "мт";
@@ -14,23 +14,26 @@ pub mod tokens {
     }
 
     pub mod stat {
-        use crate::pre::token::TokenType;
+        use crate::compiler::token::TokenType;
 
-        pub const EOF: TokenType = "всьо";
+        pub const EOF: TokenType = "кінець";
         pub const EOL: TokenType = "крч";
 
         //brackets
-        pub const LEFT_PARENTHESIS: TokenType = "(";
-        pub const RIGHT_PARENTHESIS: TokenType = ")";
-        pub const LEFT_BRACKET: TokenType = "значить"; //class, functions, statement
-        pub const RIGHT_BRACKET: TokenType = "галяк";
+        pub const LPAR: TokenType = "(";
+        pub const RPAR: TokenType = ")";
+        pub const LBRACK: TokenType = "значить"; //class, functions, statement
+        pub const RBRACK: TokenType = "всьо";
+        
+        pub const COMA: TokenType = ",";
 
         //declatarions
         pub const FUNC: TokenType = "тємка";
         pub const RET_RYPE: TokenType = "нарішає";
-        pub const CLASS: TokenType = "тіпуля";
-
-        pub const CALL: TokenType = "мутись";
+        pub const RETURN: TokenType = "рішани";
+        pub const CLASS: TokenType = "масть";
+        pub const PRIVATE: TokenType = "тіхарь";
+        pub const PUBLIC: TokenType = "кент";
 
         //variables
         pub const VAR: TokenType = "штріх";
@@ -52,7 +55,7 @@ pub mod tokens {
         //static values
         pub const TRUE: TokenType = "факт";
         pub const FALSE: TokenType = "гон";
-        pub const NULL: TokenType = "бадиль";
+        pub const NULL: TokenType = "галяк";
     }
 }
 
@@ -60,13 +63,17 @@ use self::tokens::stat::*;
 
 pub const STATIC_TOKENS: &[TokenType] = &[
     EOL,
-    LEFT_PARENTHESIS,
-    RIGHT_PARENTHESIS,
-    LEFT_BRACKET,
-    RIGHT_BRACKET,
+    LPAR,
+    RPAR,
+    LBRACK,
+    RBRACK,
+    COMA,
     FUNC,
     RET_RYPE,
+    RETURN,
     CLASS,
+    PRIVATE,
+    PUBLIC,
     ARRAY,
     IF,
     ELSE,
