@@ -2,21 +2,24 @@
 
 use compiler::parser::Parser;
 
+use crate::runtime::interpreter::{Interpreter};
+
 mod compiler;
 mod runtime;
 mod error_mgr;
 
 fn main() {
     const FILE: &str = "
-тємка абв (цифри а, цифри б) нарішає цифри значить 
-    штріх цифри аб = а + б крч 
-    рішани аб крч 
-всьо
-штріх цифри аа = абв(5, 10) крч
-аа = абв(19, 5) крч
+штріх цифри аб = 2 + 2 * 2 крч
+аб = аб - 2 крч
+базар(аб) крч
+штріх цифри абв = аб / 2 крч
+абв = аб * абвв + 2 - аб / 2 крч
+базар(абв) крч
 ";
     let c = error_mgr::CompilationError::new("test".to_string(), &FILE);
     let mut p = Parser::new(&FILE, &c);
     
-    p.parse();
+    let asts = p.parse();
+    unsafe { let mut interpreter = Interpreter::new(asts); interpreter.run(); };
 }

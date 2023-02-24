@@ -1,5 +1,4 @@
-pub mod layouts;
+pub mod types;
 pub mod arr;
-pub mod stack;
+pub mod storage;
 mod class;
-mod heap;
