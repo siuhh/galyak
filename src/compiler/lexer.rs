@@ -1,4 +1,4 @@
-use crate::error_mgr::Caller;
+use crate::error_mgr::CompilationError;
 
 use super::token::{
     self,
@@ -12,8 +12,8 @@ pub struct Lexer<'a> {
     curr_char: char,
     curr_line: usize,
     line_char: usize,
-    error_caller: &'a Caller,
-    current_token: Token,
+    error_caller: &'a CompilationError,
+    pub current_token: Token,
 }
 
 fn is_ariphmetic_op(ch: &char) -> bool {
@@ -21,19 +21,24 @@ fn is_ariphmetic_op(ch: &char) -> bool {
 }
 
 fn is_symbol(ch: &char) -> bool {
-    return ['(', ')', '>', '=', '<', '!'].contains(ch);
+    return ['(', ')', '>', '=', '<', '!', ',' ].contains(ch);
 }
 
 impl<'a> Lexer<'a> {
-    pub fn new(file: &'static str, caller: &'a Caller) -> Lexer<'a> {
+    pub fn new(file: &'static str, caller: &'a CompilationError) -> Lexer<'a> {
         let mut lexer = Lexer {
-            file: file,
+            file,
             pos: 0,
             curr_char: '\0',
             curr_line: 1,
             line_char: 1,
             error_caller: caller,
-            current_token: UNKNOWN,
+            current_token: Token {
+                name: UNKNOWN,
+                value: "uninitialized".to_string(),
+                line: 0,
+                on_char: 0,
+            },
         };
 
         //init first char
@@ -81,7 +86,7 @@ impl<'a> Lexer<'a> {
         while !self.eof() && (self.curr_char.is_numeric() || self.curr_char == '.') {
             num.push(self.curr_char);
             self.advance();
-        }
+        } 
 
         return self.tok_inst(l, c, tokens::dynamic::NUMBER, num);
     }
@@ -126,7 +131,12 @@ impl<'a> Lexer<'a> {
             str_val.push(self.curr_char);
             self.advance();
             if self.eof() || self.curr_char == '\n' {
-                //TODO: call unmatched quote error
+                self.error_caller.unmatched_quote(&self.tok_inst(
+                    l,
+                    c,
+                    tokens::dynamic::STR,
+                    str_val.to_string(),
+                ));
                 break;
             }
         }
@@ -202,11 +212,14 @@ impl<'a> Lexer<'a> {
             );
         }
 
-        return self.tok_inst(
+        let ut = self.tok_inst(
             self.curr_line,
             self.line_char,
             tokens::dynamic::UNKNOWN,
             String::from(curr),
         );
+
+        self.error_caller.unknown_token(&ut);
+        return ut;
     }
 }
