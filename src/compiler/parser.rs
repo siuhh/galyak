@@ -229,9 +229,9 @@ impl<'a> Parser<'a> {
         else {
             return_type = NULL.to_string();
         }
-        self.eat(LBRACK);
+        self.eat(COMPOUND_START);
         let compound_statement = self.statement_list();
-        self.eat(RBRACK);
+        self.eat(COMPOUND_END);
         
         return Ast::Function { 
             name, args, return_type, 
@@ -286,7 +286,7 @@ impl<'a> Parser<'a> {
     pub fn statement_list(&mut self) -> Ast {
         let mut statements = LinkedList::<Box<Ast>>::new(); 
         
-        while self.current_token.name != RBRACK &&  self.current_token.name != EOF {
+        while self.current_token.name != COMPOUND_END &&  self.current_token.name != EOF {
             statements.push_back(Box::new(self.statement()));
         } 
         return Ast::StatementList { statements };

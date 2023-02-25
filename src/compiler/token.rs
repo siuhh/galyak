@@ -22,8 +22,8 @@ pub mod tokens {
         //brackets
         pub const LPAR: TokenType = "(";
         pub const RPAR: TokenType = ")";
-        pub const LBRACK: TokenType = ":"; //class, functions, statement
-        pub const RBRACK: TokenType = "всьо";
+        pub const COMPOUND_START: TokenType = ":";
+        pub const COMPOUND_END: TokenType = "крч";
         
         pub const COMA: TokenType = ",";
 
@@ -66,8 +66,8 @@ pub const STATIC_TOKENS: &[TokenType] = &[
     EOL,
     LPAR,
     RPAR,
-    LBRACK,
-    RBRACK,
+    COMPOUND_START,
+    COMPOUND_END,
     COMA,
     FUNC,
     RET_RYPE,
