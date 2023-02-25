@@ -22,8 +22,8 @@ pub mod tokens {
         //brackets
         pub const LPAR: TokenType = "(";
         pub const RPAR: TokenType = ")";
-        pub const LBRACK: TokenType = "значить"; //class, functions, statement
-        pub const RBRACK: TokenType = "всьо";
+        pub const COMPOUND_START: TokenType = ":";
+        pub const COMPOUND_END: TokenType = "крч";
         
         pub const COMA: TokenType = ",";
 
@@ -32,6 +32,7 @@ pub mod tokens {
         pub const RET_RYPE: TokenType = "нарішає";
         pub const RETURN: TokenType = "рішани";
         pub const CLASS: TokenType = "масть";
+        pub const CONSTRUCTOR: TokenType = "вилупився";
         pub const PRIVATE: TokenType = "тіхарь";
         pub const PUBLIC: TokenType = "кент";
 
@@ -39,7 +40,7 @@ pub mod tokens {
         pub const VAR: TokenType = "штріх";
         pub const ARRAY: TokenType = "штріхи";
         pub const SET: TokenType = "=";
-        pub const GET: TokenType = "дай";
+        pub const GET: TokenType = ".";
 
         //Statements
         pub const IF: TokenType = "варік";
@@ -53,7 +54,7 @@ pub mod tokens {
         pub const MORE: TokenType = "більше";
 
         //static values
-        pub const TRUE: TokenType = "факт";
+        pub const TRUE: TokenType = "база";
         pub const FALSE: TokenType = "гон";
         pub const NULL: TokenType = "галяк";
     }
@@ -65,8 +66,8 @@ pub const STATIC_TOKENS: &[TokenType] = &[
     EOL,
     LPAR,
     RPAR,
-    LBRACK,
-    RBRACK,
+    COMPOUND_START,
+    COMPOUND_END,
     COMA,
     FUNC,
     RET_RYPE,
@@ -89,7 +90,7 @@ pub const STATIC_TOKENS: &[TokenType] = &[
     FALSE,
     NULL,
 ];
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Token {
     pub name: TokenType,
     pub value: String,

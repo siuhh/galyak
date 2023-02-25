@@ -1,6 +1,5 @@
 use core::panic;
-use std::{collections::LinkedList};
-
+use std::collections::LinkedList;
 
 use crate::{
     compiler::{
@@ -15,53 +14,7 @@ use crate::{
     }, error_mgr::CompilationError,
 };
 
-pub enum Ast {
-    Nothing,
-    Num(f64),
-    Keyword(String),
-    String(String),
-    Expression {
-        left: Box<Ast>,  //NUMBER | VAR | ARIPH_EXPRESSION | STRING
-        op: Token,       //+ - / *
-        right: Box<Ast>, //NUMBER | VAR | ARIPH_EXPRESSION | STRING
-    },
-    DeclareVariable {
-        array: bool,
-        name: String,
-        vtype: String,
-        value: Box<Ast>,//Expression
-    },
-    SetVariable {
-        name: String,
-        value: Box<Ast>, //Expression
-    },
-    Return {
-        expression: Box<Ast>, //Expression
-    },
-    CallFunc {
-        name: String,
-        args: LinkedList<Box<Ast>>, //Expression
-    },
-    Statement {
-        line: usize,
-        statement: Box<Ast>, // DecVar | Function | Class | SetVariable | CallFunc
-    },
-    StatementList {
-        statements: LinkedList<Box<Ast>>, //Statement
-    },
-    Function {
-        name: String,
-        args: LinkedList<(String, String)>,//type + name
-        return_type: String,
-        compound_statement: Box<Ast>,//StatementList
-    },
-    Class {
-        name: String,
-        args: LinkedList<(String, String)>,
-        return_type: String,
-        compound_statement: Box<Ast>,//StatementList
-    },
-}
+use super::ast::Ast;
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
     error_caller: &'a CompilationError,
@@ -76,6 +29,7 @@ impl<'a> Parser<'a> {
             error_caller: caller,
             current_token: Token::new(UNKNOWN, "EMPTY TOKEN".to_string(), 0, 0),
             peaked_token: None,
+            
         };
         parser.eat(UNKNOWN);
         return parser;
@@ -275,9 +229,9 @@ impl<'a> Parser<'a> {
         else {
             return_type = NULL.to_string();
         }
-        self.eat(LBRACK);
+        self.eat(COMPOUND_START);
         let compound_statement = self.statement_list();
-        self.eat(RBRACK);
+        self.eat(COMPOUND_END);
         
         return Ast::Function { 
             name, args, return_type, 
@@ -326,24 +280,23 @@ impl<'a> Parser<'a> {
                 return ret;
             },
             _ => self.declaration_statement(),
-        }
+        } 
     }
     
     pub fn statement_list(&mut self) -> Ast {
-        let mut statements = LinkedList::<Box<Ast>>::new();
+        let mut statements = LinkedList::<Box<Ast>>::new(); 
         
-        while self.current_token.name != RBRACK &&  self.current_token.name != EOF {
+        while self.current_token.name != COMPOUND_END &&  self.current_token.name != EOF {
             statements.push_back(Box::new(self.statement()));
-        }
-        
+        } 
         return Ast::StatementList { statements };
     }
     
-    pub fn parse(&mut self) -> LinkedList<Box<Ast>> {
+    pub fn parse(&mut self) -> LinkedList<Box<Ast>> { 
         if let Ast::StatementList { statements } = self.statement_list() {
             return statements;
         }
-        else {
+        else { 
             panic!();
         }
     }
