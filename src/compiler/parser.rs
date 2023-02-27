@@ -240,9 +240,12 @@ impl<'a> Parser<'a> {
     }
     //(dec_var | dec_func | dec_class)
     pub fn declaration_statement(&mut self) -> Ast {
+        
+                println!("here is decstat");
         return match self.current_token.name {
             FUNC => self.st_def_func(),
             VAR => {
+                println!("here is decvar");
                 let dec_var = self.st_dec_var();
                 self.eat(EOL);
                 return dec_var;
@@ -279,6 +282,10 @@ impl<'a> Parser<'a> {
                 self.eat(EOL);
                 return ret;
             },
+            EOL => { //skip empty line
+                self.eat(EOL);
+                return Ast::Nothing;
+            }
             _ => self.declaration_statement(),
         } 
     }
@@ -286,9 +293,16 @@ impl<'a> Parser<'a> {
     pub fn statement_list(&mut self) -> Ast {
         let mut statements = LinkedList::<Box<Ast>>::new(); 
         
-        while self.current_token.name != COMPOUND_END &&  self.current_token.name != EOF {
-            statements.push_back(Box::new(self.statement()));
+        while self.current_token.name != COMPOUND_END && self.current_token.name != EOF {
+            let statement = self.statement();
+            
+            if let Ast::Nothing = statement {
+                continue;
+            }
+            
+            statements.push_back(Box::new(statement));
         } 
+        
         return Ast::StatementList { statements };
     }
     

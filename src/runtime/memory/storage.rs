@@ -1,5 +1,5 @@
 use core::alloc::Layout;
-use std::alloc::{self, dealloc, alloc};
+use std::alloc::{self, dealloc};
 
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{LinkedList};
@@ -13,14 +13,17 @@ pub struct StackHashMap {
     pub vec: Vec<(u64, StackVariable)>,
 }
 impl StackHashMap {
+    
     pub fn new() -> Self {
         return  StackHashMap { vec: Vec::new() };
     }
+    
     fn hash(str: String) -> u64 {
         let hasher = &mut DefaultHasher::new();
         str.hash(hasher);
         return hasher.finish();
     }
+    
     pub fn push(&mut self, key: &String, value: StackVariable) {
         let hashed = StackHashMap::hash(key.clone());
         let mut pos = 0;
@@ -41,6 +44,7 @@ impl StackHashMap {
             break;
         }
     }
+    
     pub fn get(&mut self, key: &String) -> Option<&StackVariable> {
         let target = StackHashMap::hash(key.clone());
         
@@ -112,7 +116,6 @@ impl Stack {
         (*stack_ptr).self_ptr = stack_ptr as *mut u8;
         (*stack_ptr).offsets = offsets;
         
-        
         return stack_ptr;
     }
     
@@ -153,6 +156,7 @@ impl Stack {
         }
         
     }
+    
 }
 
 pub struct HeapSpace {

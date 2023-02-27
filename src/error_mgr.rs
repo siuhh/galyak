@@ -73,7 +73,7 @@ impl CompilationError {
         self.pr_err_head(ln, ch, &message);
         self.pr_err_line(ln, ch, token.value.chars().count());
         self.pr_message(ch, token.value.chars().count(), message);
-        //std::process::exit(0);
+        std::process::exit(0);
     }
 
     pub fn unknown_token(&self, t: &Token) {

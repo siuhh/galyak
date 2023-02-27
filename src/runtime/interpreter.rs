@@ -1,8 +1,8 @@
-use std::{collections::LinkedList, ptr::null, alloc::dealloc};
+use std::{collections::LinkedList, ptr::null};
 
 use crate::{compiler::ast::{Ast, deref_ast}};
 
-use super::memory::{storage::{StackReservation, Stack}, types::{get_type, Type, get_layout}};
+use super::memory::{storage::{StackReservation, Stack}, types::{get_type, Type}};
 
 pub unsafe fn init_stack(call_stack: &LinkedList<Box<Ast>>) -> *mut Stack {
     let mut reserve = LinkedList::<StackReservation>::new();
@@ -36,7 +36,7 @@ impl Interpreter {
             panic!();
         }
 		
-		return *ptr as f64;
+		return *(ptr as *mut f64);
     }
 	
     fn var_str(&self) -> String {
@@ -87,7 +87,8 @@ impl Interpreter {
 		
 		match vtype {
 			Type::Float => {
-				*(var_ptr as *mut f64) = self.expression(deref_ast(&value));
+                let val = self.expression(deref_ast(&value));
+				*(var_ptr as *mut f64) = val;
 			}
 			_ => panic!(),
 		}

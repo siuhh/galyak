@@ -17,14 +17,14 @@ pub mod tokens {
         use crate::compiler::token::TokenType;
 
         pub const EOF: TokenType = "кінець";
-        pub const EOL: TokenType = "крч";
+        pub const EOL: TokenType = "кінець строки";
 
         //brackets
         pub const LPAR: TokenType = "(";
         pub const RPAR: TokenType = ")";
         pub const COMPOUND_START: TokenType = ":";
-        pub const COMPOUND_END: TokenType = "крч";
-        
+        pub const COMPOUND_END: TokenType = ".";
+
         pub const COMA: TokenType = ",";
 
         //declatarions
@@ -63,7 +63,6 @@ pub mod tokens {
 use self::tokens::stat::*;
 
 pub const STATIC_TOKENS: &[TokenType] = &[
-    EOL,
     LPAR,
     RPAR,
     COMPOUND_START,

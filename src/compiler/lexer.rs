@@ -2,7 +2,7 @@ use crate::error_mgr::CompilationError;
 
 use super::token::{
     self,
-    tokens::{self, dynamic::UNKNOWN},
+    tokens::{self, dynamic::UNKNOWN, stat::EOL},
     Token, TokenType,
 };
 
@@ -21,7 +21,7 @@ fn is_ariphmetic_op(ch: &char) -> bool {
 }
 
 fn is_symbol(ch: &char) -> bool {
-    return ['(', ')', '>', '=', '<', '!', ',' ].contains(ch);
+    return ['(', ')', '>', '=', '<', '!', ',', '.', ':'].contains(ch);
 }
 
 impl<'a> Lexer<'a> {
@@ -53,10 +53,11 @@ impl<'a> Lexer<'a> {
     fn advance(&mut self) {
         self.line_char += 1;
         self.pos += 1;
-
+        
         if self.eof() {
             return;
         }
+        
         self.curr_char = self.at_pos(self.pos);
 
         if self.curr_char == '\n' {
@@ -70,7 +71,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn space(&self) -> bool {
-        return self.curr_char == ' ' || self.curr_char == '\n' || self.curr_char == '\t';
+        return self.curr_char == ' ' || self.curr_char == '\t';
     }
 
     fn tok_inst(&self, line: usize, ch: usize, typ: TokenType, val: String) -> Token {
@@ -159,9 +160,6 @@ impl<'a> Lexer<'a> {
                 return self.tok_inst(l, c, st, word);
             }
         }
-        if true {
-        } else {
-        }
 
         return self.tok_inst(l, c, tokens::dynamic::UNKNOWN, word);
     }
@@ -173,6 +171,7 @@ impl<'a> Lexer<'a> {
     }
 
     pub fn next_token(&mut self) -> Token {
+        
         self.skip_space();
 
         if self.eof() {
@@ -182,6 +181,13 @@ impl<'a> Lexer<'a> {
                 tokens::stat::EOF,
                 String::from("eof"),
             );
+        }
+
+        if self.curr_char == '\n' {
+            let pos = (self.curr_line, self.line_char);
+            self.advance();
+            
+            return self.tok_inst(pos.0, pos.1, EOL, EOL.to_string());
         }
 
         let curr = self.curr_char;
