@@ -1,6 +1,10 @@
 use crate::compiler::token::Token;
 use colored::Colorize;
 
+pub enum ErrorType {
+    WrongType
+}
+
 pub struct CompilationError {
     file_name: String,
     file: &'static str,

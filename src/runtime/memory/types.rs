@@ -1,4 +1,4 @@
-use std::{alloc::{Layout}};
+use std::alloc::Layout;
 
 use super::{storage::Stack};
 

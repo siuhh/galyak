@@ -119,7 +119,7 @@ impl Stack {
         return stack_ptr;
     }
     
-    pub unsafe fn dealloc(&mut self) {
+    pub unsafe fn nahuy(&mut self) {
         dealloc(self.start, Layout::from_size_align_unchecked(self.size, 0));
         dealloc(self.self_ptr, STACK_LAYOUT);
     }

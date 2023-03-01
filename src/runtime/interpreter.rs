@@ -95,7 +95,7 @@ impl Interpreter {
 	}
     
 	pub unsafe fn end(&mut self) {
-		(*self.mem_stack).dealloc();
+		(*self.mem_stack).nahuy();
 	}
     
     pub unsafe fn run(&mut self) {
