@@ -98,7 +98,7 @@ pub struct Token {
 }
 
 impl Token {
-    pub fn new(name: TokenType, val: String, line: usize, ch: usize) -> Token {
+    pub fn new(line: usize, ch: usize, name: TokenType, val: String) -> Token {
         return Token {
             name,
             value: val,
@@ -107,6 +107,7 @@ impl Token {
         };
     }
 }
+
 impl Display for Token {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write!(
