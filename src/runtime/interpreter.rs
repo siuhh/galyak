@@ -6,12 +6,14 @@ use super::memory::{storage::{StackReservation, Stack}, types::{get_type, Type}}
 
 pub unsafe fn init_stack(call_stack: &LinkedList<Box<Ast>>) -> *mut Stack {
     let mut reserve = LinkedList::<StackReservation>::new();
+    
     for cs in call_stack {
         let ast = deref_ast(cs);
         if let Ast::DeclareVariable { array: _, name, vtype, value: _ } = ast {
             reserve.push_back(StackReservation { vtype: get_type(&vtype), name })
         }
     }
+    
     return Stack::alloc(reserve);
 }
 

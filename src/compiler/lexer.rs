@@ -1,10 +1,10 @@
-use crate::error_mgr::CompilationError;
+use crate::program::error_mgr::ErrorCaller;
 
-use super::token::{
+use super::{token::{
     self,
     tokens::{self, dynamic::UNKNOWN, stat::EOL},
-    Token, TokenType,
-};
+    Token
+}, errors::{err_unmatched_quote, err_unknown_token}};
 
 pub struct Lexer<'a> {
     file: &'static str,
@@ -12,7 +12,7 @@ pub struct Lexer<'a> {
     curr_char: char,
     curr_line: usize,
     line_char: usize,
-    error_caller: &'a CompilationError,
+    error_caller: &'a ErrorCaller,
     pub current_token: Token,
 }
 
@@ -25,13 +25,13 @@ fn is_symbol(ch: &char) -> bool {
 }
 
 impl<'a> Lexer<'a> {
-    pub fn new(file: &'static str, caller: &'a CompilationError) -> Lexer<'a> {
+    pub fn new(file: &'static str, caller: &'a ErrorCaller) -> Lexer<'a> {
         let mut lexer = Lexer {
             file,
             pos: 0,
             curr_char: '\0',
             curr_line: 1,
-            line_char: 1,
+            line_char: 0,
             error_caller: caller,
             current_token: Token {
                 name: UNKNOWN,
@@ -59,11 +59,6 @@ impl<'a> Lexer<'a> {
         }
         
         self.curr_char = self.at_pos(self.pos);
-
-        if self.curr_char == '\n' {
-            self.curr_line += 1;
-            self.line_char = 0;
-        }
     }
 
     fn eof(&self) -> bool {
@@ -72,10 +67,6 @@ impl<'a> Lexer<'a> {
 
     fn space(&self) -> bool {
         return self.curr_char == ' ' || self.curr_char == '\t';
-    }
-
-    fn tok_inst(&self, line: usize, ch: usize, typ: TokenType, val: String) -> Token {
-        return Token::new(typ, val, line, ch);
     }
 
     fn get_number_token(&mut self) -> Token {
@@ -89,7 +80,7 @@ impl<'a> Lexer<'a> {
             self.advance();
         } 
 
-        return self.tok_inst(l, c, tokens::dynamic::NUMBER, num);
+        return Token::new(l, c, tokens::dynamic::NUMBER, num);
     }
 
     fn get_word(&mut self) -> String {
@@ -111,11 +102,11 @@ impl<'a> Lexer<'a> {
 
         for st in token::STATIC_TOKENS {
             if st.to_string() == word {
-                return self.tok_inst(l, c, st, word);
+                return Token::new(l, c, st, word);
             }
         }
 
-        return self.tok_inst(l, c, tokens::dynamic::NAME, word);
+        return Token::new(l, c, tokens::dynamic::NAME, word);
     }
 
     fn get_str_token(&mut self) -> Token {
@@ -132,19 +123,20 @@ impl<'a> Lexer<'a> {
             str_val.push(self.curr_char);
             self.advance();
             if self.eof() || self.curr_char == '\n' {
-                self.error_caller.unmatched_quote(&self.tok_inst(
+                let t = &Token::new(
                     l,
                     c,
                     tokens::dynamic::STR,
                     str_val.to_string(),
-                ));
+                );
+                self.error_caller.comp_error(err_unmatched_quote(), t);
                 break;
             }
         }
 
         self.advance();
 
-        return self.tok_inst(l, c, tokens::dynamic::STR, str_val);
+        return Token::new(l, c, tokens::dynamic::STR, str_val);
     }
 
     fn get_symbol_token(&mut self) -> Token {
@@ -157,11 +149,11 @@ impl<'a> Lexer<'a> {
 
         for st in token::STATIC_TOKENS {
             if st.to_string() == word {
-                return self.tok_inst(l, c, st, word);
+                return Token::new(l, c, st, word);
             }
         }
 
-        return self.tok_inst(l, c, tokens::dynamic::UNKNOWN, word);
+        return Token::new(l, c, tokens::dynamic::UNKNOWN, word);
     }
 
     fn skip_space(&mut self) {
@@ -175,7 +167,7 @@ impl<'a> Lexer<'a> {
         self.skip_space();
 
         if self.eof() {
-            return self.tok_inst(
+            return Token::new(
                 self.curr_line,
                 self.line_char,
                 tokens::stat::EOF,
@@ -185,9 +177,14 @@ impl<'a> Lexer<'a> {
 
         if self.curr_char == '\n' {
             let pos = (self.curr_line, self.line_char);
-            self.advance();
             
-            return self.tok_inst(pos.0, pos.1, EOL, EOL.to_string());
+            self.line_char = 0;
+            self.curr_line += 1;
+            self.pos += 1;
+            
+            self.curr_char = self.at_pos(self.pos);
+            
+            return Token::new(pos.0, pos.1, EOL, EOL.to_string());
         }
 
         let curr = self.curr_char;
@@ -210,22 +207,22 @@ impl<'a> Lexer<'a> {
 
         if is_ariphmetic_op(&curr) {
             self.advance();
-            return self.tok_inst(
+            return Token::new(
                 self.curr_line,
-                self.line_char - 1,
+                self.line_char,
                 tokens::dynamic::ARIPH_OP,
                 String::from(curr),
             );
         }
 
-        let ut = self.tok_inst(
+        let ut = Token::new(
             self.curr_line,
             self.line_char,
             tokens::dynamic::UNKNOWN,
             String::from(curr),
         );
 
-        self.error_caller.unknown_token(&ut);
+        self.error_caller.comp_error(err_unknown_token(&ut), &ut);
         return ut;
     }
 }

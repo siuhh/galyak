@@ -1,11 +1,9 @@
 use std::{ ptr::null, alloc::{Layout, dealloc, alloc} };
 
-use crate::error_mgr::ErrorType;
-
 const NODE_NULL: *mut Node = null::<Node>() as *mut Node;
 const NODE_LAYOUT: Layout = Layout::new::<Node>();
 
-use super::types::{Type, get_layout};
+use super::{types::{Type, get_layout}, errors::err_wrong_type};
 
 pub struct Node {
     next: *mut Node,
@@ -95,12 +93,12 @@ impl List {
         }
     }
     
-    pub unsafe fn push<T>(&mut self, value: T) -> Result<(), ErrorType>{
+    pub unsafe fn push<T>(&mut self, value: T) -> Result<(), String>{
         let expected_layout = get_layout(&self.vtype);
         let real_layout = Layout::new::<T>();
         
         if expected_layout != real_layout {
-            return Err(ErrorType::WrongType);
+            return Err(err_wrong_type());
         }
         
         let value_ptr = alloc(expected_layout);

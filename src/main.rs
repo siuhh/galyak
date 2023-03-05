@@ -2,24 +2,30 @@
 
 use compiler::parser::Parser;
 
-use crate::runtime::interpreter::{Interpreter};
+use crate::{runtime::interpreter::{Interpreter}, program::error_mgr};
 
 mod compiler;
 mod runtime;
-mod error_mgr;
+mod program;
 mod test;
 
 fn main() {
     const FILE: &str = "
+    
+    
+    
+    
+    
+    
 штріх цифри аб = 2 + 2 * 2
 базар(аб) 
 аб = аб - 2 
 базар(аб)
 штріх цифри абв = аб / 2
-абв = аб * абв + 2 - аб / 2
+абв = аб * абв + 2 - аб / 2dasdfasdf&&^&
 базар(абв)
 ";
-    let c = error_mgr::CompilationError::new("test".to_string(), &FILE);
+    let c = error_mgr::ErrorCaller::new("тест.глк".to_string(), &FILE);
     let mut p = Parser::new(&FILE, &c);
     
     let asts = p.parse();

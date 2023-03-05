@@ -10,24 +10,25 @@ use crate::{
                 stat::*,
             },
             Token, TokenType,
-        },
-    }, error_mgr::CompilationError,
+        }, errors::err_unexpected_token,
+    }, 
+    program::error_mgr::ErrorCaller,
 };
 
 use super::ast::Ast;
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
-    error_caller: &'a CompilationError,
+    error_caller: &'a ErrorCaller,
     current_token: Token,
     peaked_token: Option<Token>,
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(file: &'static str, caller: &'a CompilationError) -> Parser<'a> {
+    pub fn new(file: &'static str, caller: &'a ErrorCaller) -> Parser<'a> {
         let mut parser = Parser {
             lexer: Lexer::new(file, caller),
             error_caller: caller,
-            current_token: Token::new(UNKNOWN, "EMPTY TOKEN".to_string(), 0, 0),
+            current_token: Token::new(0, 0, UNKNOWN, "EMPTY TOKEN".to_string(), ),
             peaked_token: None,
             
         };
@@ -58,7 +59,7 @@ impl<'a> Parser<'a> {
             
             return prev;
         }
-        self.error_caller.unexpected_token(&self.current_token);
+        self.error_caller.comp_error(err_unexpected_token(&self.current_token), &self.current_token);
         panic!();
     }
 
@@ -82,7 +83,7 @@ impl<'a> Parser<'a> {
             self.eat(RPAR);
             return node;
         }
-        self.error_caller.unexpected_token(&self.current_token);
+        self.error_caller.comp_error(err_unexpected_token(&self.current_token), &self.current_token);
         panic!();
     }
     //term   : factor ((MUL | DIV) factor)*
@@ -240,19 +241,16 @@ impl<'a> Parser<'a> {
     }
     //(dec_var | dec_func | dec_class)
     pub fn declaration_statement(&mut self) -> Ast {
-        
-                println!("here is decstat");
         return match self.current_token.name {
             FUNC => self.st_def_func(),
             VAR => {
-                println!("here is decvar");
                 let dec_var = self.st_dec_var();
                 self.eat(EOL);
                 return dec_var;
             },
             CLASS => todo!(), //TODO!
             _ => {
-                self.error_caller.unexpected_token(&self.current_token);
+                self.error_caller.comp_error(err_unexpected_token(&self.current_token), &self.current_token);
                 panic!();
             }
         }
@@ -271,7 +269,7 @@ impl<'a> Parser<'a> {
                     expr =  self.st_call_func();
                 }
                 else {
-                    self.error_caller.unexpected_token(&self.current_token);
+                    self.error_caller.comp_error(err_unexpected_token(&self.current_token), &self.current_token);
                     panic!();
                 }
                 self.eat(EOL);
