@@ -7,7 +7,7 @@ use super::{token::{
 }, errors::{err_unmatched_quote, err_unknown_token}};
 
 pub struct Lexer<'a> {
-    file: &'static str,
+    file: String,
     pos: usize,
     curr_char: char,
     curr_line: usize,
@@ -25,7 +25,7 @@ fn is_symbol(ch: &char) -> bool {
 }
 
 impl<'a> Lexer<'a> {
-    pub fn new(file: &'static str, caller: &'a ErrorCaller) -> Lexer<'a> {
+    pub fn new(file: String, caller: &'a ErrorCaller) -> Lexer<'a> {
         let mut lexer = Lexer {
             file,
             pos: 0,
@@ -163,8 +163,8 @@ impl<'a> Lexer<'a> {
     }
 
     pub fn next_token(&mut self) -> Token {
-        
         self.skip_space();
+        
 
         if self.eof() {
             return Token::new(
@@ -181,8 +181,9 @@ impl<'a> Lexer<'a> {
             self.line_char = 0;
             self.curr_line += 1;
             self.pos += 1;
-            
-            self.curr_char = self.at_pos(self.pos);
+            if !self.eof() {
+                self.curr_char = self.at_pos(self.pos);
+            }
             
             return Token::new(pos.0, pos.1, EOL, EOL.to_string());
         }

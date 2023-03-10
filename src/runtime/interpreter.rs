@@ -1,65 +1,77 @@
-use std::{collections::LinkedList, ptr::null};
+use core::panic;
+use std::{collections::LinkedList, ptr::{null, write}};
 
-use crate::{compiler::ast::{Ast, deref_ast}};
+use crate::{
+    compiler::ast::{deref_ast, Ast},
+    program::error_mgr::ErrorCaller, runtime::{memory::var::var_fn},
+};
 
-use super::memory::{storage::{StackReservation, Stack}, types::{get_type, Type}};
+use super::{
+    func::GlkFuncDeclaration,
+    memory::{
+        storage::{GlkStack, VarInfo},
+        types::{get_type, Type},
+        var::*,
+    },
+};
 
-pub unsafe fn init_stack(call_stack: &LinkedList<Box<Ast>>) -> *mut Stack {
-    let mut reserve = LinkedList::<StackReservation>::new();
-    
-    for cs in call_stack {
-        let ast = deref_ast(cs);
-        if let Ast::DeclareVariable { array: _, name, vtype, value: _ } = ast {
-            reserve.push_back(StackReservation { vtype: get_type(&vtype), name })
-        }
-    }
-    
-    return Stack::alloc(reserve);
-}
-
-pub struct Interpreter {
+pub struct Interpreter<'a> {
     call_stack: LinkedList<Box<Ast>>,
-    mem_stack: *mut Stack,
+    mem_stack: *mut GlkStack,
+    error_caller: &'a ErrorCaller,
+    curr_line: usize,
 }
 
 unsafe fn is_null(ptr: *mut u8) -> bool {
     return ptr == null::<u8>() as *mut u8;
 }
 
-impl Interpreter {
-    pub unsafe fn new(call_stack: LinkedList<Box<Ast>>) -> Interpreter {
-        return Interpreter { call_stack, mem_stack: null::<Stack>() as *mut Stack}
-    }
-    
-    unsafe fn var_num(&self, name: &String) -> f64 {
-        let ptr = (*self.mem_stack).get_wt(name, &Type::Float);
+impl<'a> Interpreter<'a> {
+    pub unsafe fn new(func: *mut GlkFuncDeclaration, error_caller: &'a ErrorCaller) -> Self {
+        let mem_stack = 
+            if (*func).stack_reservation.len() != 0 {
+                GlkStack::alloc(&(*func).stack_reservation)
+            }
+            else {
+                null::<GlkStack>() as *mut GlkStack
+            };
+            
         
-        if is_null(ptr) {
-            panic!();
-        }
-		
-		return *(ptr as *mut f64);
-    }
-	
-    fn var_str(&self) -> String {
-        return "1488".to_string();
+        return Interpreter {
+            call_stack: (*func).call_stack.clone(),
+            mem_stack,
+            error_caller,
+            curr_line: 0,
+        };
     }
 
-    unsafe fn expression(&self, bin: Ast) -> f64 {
+    fn unwrap<T>(&mut self, res: Result<T, String>) -> T {
+        match res {
+            Ok(value) => value,
+            Err(message) => {
+                unsafe { self.end() };
+                self.error_caller.runt_error(message, self.curr_line);
+                panic!();
+            }
+        }
+    }
+
+    unsafe fn num(&mut self, bin: Ast) -> f64 {
         match bin {
             Ast::Num(value) => value,
             Ast::Expression { left, op, right } => match op.value.as_str() {
-                "+" => self.expression(*left) + self.expression(*right),
-                "-" => self.expression(*left) - self.expression(*right),
-                "*" => self.expression(*left) * self.expression(*right),
-                "/" => self.expression(*left) / self.expression(*right),
+                "+" => self.num(*left) + self.num(*right),
+                "-" => self.num(*left) - self.num(*right),
+                "*" => self.num(*left) * self.num(*right),
+                "/" => self.num(*left) / self.num(*right),
                 _ => panic!(),
             },
-            Ast::Keyword(value) => self.var_num(&value),
+            Ast::Keyword(value) => self.unwrap(var_num(self.mem_stack, &value)),
             _ => panic!(),
         }
     }
-    fn string(&self, str: Ast) -> String {
+
+    unsafe fn string(&self, str: Ast) -> String {
         match str {
             Ast::String(value) => value,
             Ast::Expression { left, op, right } => match op.value.as_str() {
@@ -68,58 +80,133 @@ impl Interpreter {
                     panic!();
                 }
             },
-            Ast::Keyword(_) => self.var_str(),
+            Ast::Keyword(_name) => todo!(),//TODO!
             _ => panic!(),
         }
     }
-    unsafe fn declare_variable(&self, vtype: &String, name: &String, value: Box<Ast>) {
-		let vtype = get_type(vtype);
-		let var_ptr = (*self.mem_stack).get_wt(name, &vtype);
-		
-		match vtype {
-			Type::Float => {
-				*(var_ptr as *mut f64) = self.expression(deref_ast(&value));
-			}
-			_ => panic!(),
-		}
-	}
-	
-	unsafe fn set_variable(&self, name: &String, value: Box<Ast>) {
-		let (var_ptr, vtype) = (*self.mem_stack).get(name);
-		
-		match vtype {
-			Type::Float => {
-                let val = self.expression(deref_ast(&value));
-				*(var_ptr as *mut f64) = val;
-			}
-			_ => panic!(),
-		}
-	}
-    
-	pub unsafe fn end(&mut self) {
-		(*self.mem_stack).nahuy();
-	}
-    
-    pub unsafe fn run(&mut self) {
-		self.mem_stack = init_stack(&self.call_stack);
-		
-		for cs in &self.call_stack {
-			let ast = deref_ast(cs);
-			
-			match ast {
-				Ast::CallFunc { name: _, args } => {
-					println!("{}", self.expression(deref_ast(args.front().unwrap())));
-				},
-				Ast::DeclareVariable { array: _, name, vtype, value } => {
-					self.declare_variable(&vtype, &name, value);
-				}
-				Ast::SetVariable { name, value } => {
-					self.set_variable(&name, value);
-				}
-				_ => panic!(),
-			}
-        }
-		self.end();
+
+    unsafe fn declare_variable(&mut self, _array: bool, vtype: &String, name: &String, value: Box<Ast>) {
+        let vtype = get_type(vtype);
+        let res = (*self.mem_stack).get_typed(name, &vtype);
+        let var_ptr = self.unwrap(res);
         
+        match vtype {
+            Type::Number => {
+                let val = self.num(deref_ast(&value));
+                write(var_ptr as *mut f64, val);
+            }
+            Type::String =>  {
+                let val = self.string(deref_ast(&value));
+                write(var_ptr as *mut String, val);
+            }
+            //TODO! add other types
+            _ => panic!(),
+        }
+    }
+
+    unsafe fn set_variable(&mut self, name: &String, value: Box<Ast>) {
+        let res = (*self.mem_stack).get_dynamicaly(name);
+        let (var_ptr, vtype) = self.unwrap(res);
+
+        match vtype {
+            Type::Number => {
+                let val = self.num(deref_ast(&value));
+                write(var_ptr as *mut f64, val);
+            }
+            Type::String => {
+                let val = self.string(deref_ast(&value));
+                write(var_ptr as *mut String, val);
+            }
+            _ => panic!(),
+        }
+    }
+    
+    unsafe fn declare_function(&mut self, 
+        name: String, 
+        args: LinkedList<(String, String)>, 
+        return_type: String, 
+        compound_statement: LinkedList<Box<Ast>>
+    ){
+        let ptr = {
+            let res = (*self.mem_stack).get_typed(&name, &Type::Func);
+            self.unwrap(res)
+        };
+        
+        let mut parsed_args = LinkedList::<VarInfo>::new();
+        
+        for arg in args {
+            parsed_args.push_back(VarInfo { vtype: get_type(&arg.0), name: arg.1 });
+        }
+        
+        let func = GlkFuncDeclaration::new(compound_statement, parsed_args, get_type(&return_type));
+        
+        write(ptr as *mut GlkFuncDeclaration, func);
+        
+    }
+    
+    pub unsafe fn call_func(&mut self, name: String, passed_args: LinkedList<Box<Ast>>) {
+        if name == "базар" {
+            for arg in &passed_args {
+                println!("{}", self.num(deref_ast(arg)));
+            }
+            return;
+        }
+        
+        let declared_func = self.unwrap(var_fn(self.mem_stack, &name));
+        
+        let mut args_iter = passed_args.iter();
+        
+        let mut func_interpreter = Interpreter::new(declared_func, self.error_caller);
+        let intpr_mem = func_interpreter.mem_stack;
+        
+        //TODO! перевіряти кількість аргів
+        //move arguments values to call stack
+        for arg in &(*declared_func).args {
+            match arg.vtype {
+                Type::Number => {
+                    let ptr = self.unwrap((*intpr_mem).get_typed(&arg.name, &arg.vtype));
+                    *(ptr as *mut f64) = self.num(deref_ast(&args_iter.next().unwrap()));
+                }
+                Type::String => {
+                    let ptr = self.unwrap((*intpr_mem).get_typed(&arg.name, &arg.vtype));
+                    *(ptr as *mut String) = self.string(deref_ast(&args_iter.next().unwrap()));
+                }
+                _ => todo!() //TODO!
+            }
+        }
+        
+        func_interpreter.run();
+    }
+
+    pub unsafe fn end(&mut self) {
+        (*self.mem_stack).nahuy();
+    }
+
+    pub unsafe fn run(&mut self) {
+        for cs in self.call_stack.clone() {
+            let ast = deref_ast(&cs);
+            
+            if let Ast::Statement { line, statement } = ast {
+                let stat = deref_ast(&statement);
+                
+                self.curr_line = line;
+                
+                match stat {
+                    Ast::CallFunc { name, args } => {
+                        self.call_func(name, args);
+                    }
+                    Ast::Function { name, args, return_type, compound_statement } => {
+                        self.declare_function(name, args, return_type, compound_statement);
+                    }
+                    Ast::DeclareVariable { array, name, vtype, value } => {
+                        self.declare_variable(array, &vtype, &name, value);
+                    }
+                    Ast::SetVariable { name, value } => {
+                        self.set_variable(&name, value);
+                    }
+                    _ => panic!(),
+                }  
+            }
+        }
     }
 }

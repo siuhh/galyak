@@ -1,2 +1,2 @@
-mod program;
+pub mod program;
 pub mod error_mgr;

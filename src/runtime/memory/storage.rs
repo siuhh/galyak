@@ -4,18 +4,24 @@ use std::alloc::{self, dealloc};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{LinkedList};
 use std::hash::{Hash, Hasher};
-use std::ptr::null;
+use std::ptr::write;
 
+use super::errors::{var_not_found, err_wrong_type, var_already_exists};
 use super::types::{self, Type, STACK_LAYOUT};
 use super::types::get_layout;
 
 pub struct StackHashMap {
     pub vec: Vec<(u64, StackVariable)>,
 }
+
+pub struct StackVariable {
+    pub offset: usize,
+    pub vtype: Type,
+}
+
 impl StackHashMap {
-    
     pub fn new() -> Self {
-        return  StackHashMap { vec: Vec::new() };
+        return StackHashMap { vec: Vec::new() };
     }
     
     fn hash(str: String) -> u64 {
@@ -24,15 +30,17 @@ impl StackHashMap {
         return hasher.finish();
     }
     
-    pub fn push(&mut self, key: &String, value: StackVariable) {
+    pub fn push(&mut self, key: &String, value: StackVariable) -> Result<(), String> {
         let hashed = StackHashMap::hash(key.clone());
         let mut pos = 0;
         
         loop {
             let n = self.vec.get(pos);
-            
             if n.is_none() {
                 self.vec.insert(pos, (hashed, value));
+            }
+            else if n.unwrap().0 == hashed {
+                return Err(var_already_exists());
             }
             else if n.unwrap().0 > hashed {
                 self.vec.insert(pos, (hashed, value));
@@ -43,6 +51,7 @@ impl StackHashMap {
             }
             break;
         }
+        return Ok(());
     }
     
     pub fn get(&mut self, key: &String) -> Option<&StackVariable> {
@@ -57,9 +66,11 @@ impl StackHashMap {
 
             if self.vec[mid].0 == target {
                 return Some(&self.vec[mid].1);
-            } else if self.vec[mid].0 < target {
+            } 
+            else if self.vec[mid].0 < target {
                 left = mid + 1;
-            } else {
+            } 
+            else {
                 right = mid - 1;
             }
         }
@@ -67,37 +78,32 @@ impl StackHashMap {
         return None;
     }
 }
-
-
-#[derive(PartialEq)]
-pub struct StackReservation {
+#[derive(Clone)]
+pub struct VarInfo {
     pub vtype: Type,
     pub name: String,
 }
-#[derive(Debug)]
-pub struct StackVariable {
-    pub offset: usize,
-    pub vtype: Type,
-}
-
-pub struct Stack {
+pub struct GlkStack {
     pub size: usize,
     pub start: *mut u8,
     pub offsets: StackHashMap,
     pub self_ptr: *mut u8,
 }
 
-impl Stack {
-    pub unsafe fn alloc(reserve: LinkedList<StackReservation>) -> *mut Stack {
+impl GlkStack {
+    pub unsafe fn alloc(reserve: &LinkedList<VarInfo>) -> *mut GlkStack {
         let mut size: usize = 0;
         
         let mut align = 0;
         
         let mut offsets = StackHashMap::new();
         
-        for reservation in &reserve {
-            
-            offsets.push(&reservation.name, StackVariable { offset: size, vtype: reservation.vtype });
+        for reservation in reserve {
+            //TODO! call error on variable names repeat
+            let _push_result = offsets.push(
+                &reservation.name, 
+                StackVariable { offset: size, vtype: reservation.vtype }
+            );
             
             let curr_size = types::get_layout(&reservation.vtype).size();
             
@@ -108,50 +114,65 @@ impl Stack {
             size += curr_size;
         }
         
-        let fields_ptr = alloc::alloc(Layout::from_size_align(size, align).unwrap());
-        let stack_ptr = alloc::alloc(Layout::new::<Stack>()) as *mut Stack;
+        let fields_ptr = alloc::alloc(Layout::from_size_align(size, 8).unwrap());
+        //TODO! зробити шось з вирівнюванням
+        let stack_ptr = alloc::alloc(Layout::new::<GlkStack>()) as *mut GlkStack;
         
-        (*stack_ptr).start = fields_ptr;
-        (*stack_ptr).size = size;
-        (*stack_ptr).self_ptr = stack_ptr as *mut u8;
-        (*stack_ptr).offsets = offsets;
+        let stack = GlkStack {
+            start: fields_ptr,
+            size,
+            self_ptr: stack_ptr as *mut u8,
+            offsets,
+        };
+        
+        write(stack_ptr, stack);
         
         return stack_ptr;
     }
     
     pub unsafe fn nahuy(&mut self) {
+        for vec_el in &self.offsets.vec {
+            let var = &vec_el.1;
+            
+            match var.vtype {
+                Type::Class => {
+                    todo!(); //TODO! class dealloc here
+                }
+                Type::Stack => {
+                    
+                }
+                _ => ()
+            }
+        }
         dealloc(self.start, Layout::from_size_align_unchecked(self.size, 0));
         dealloc(self.self_ptr, STACK_LAYOUT);
     }
     
-    pub unsafe fn get_wt(&mut self, name: &String, vtype: &Type) -> *mut u8 {
+    pub unsafe fn get_typed(&mut self, name: &String, vtype: &Type) -> Result<*mut u8, String> {
         let var = self.offsets.get(name);
         
         match var {
             Some(val) => {
                 if val.vtype != *vtype {
-                    //TODO! call error here
-                    panic!();
+                    return Err(err_wrong_type());
                 }
-                return self.start.add(val.offset);
+                return Ok(self.start.add(val.offset));
             },
             None => {
-                return null::<u8>() as *mut u8;
+                return Err(var_not_found());
             },
         }
-        
-        
     }
     
-    pub unsafe fn get(&mut self, name: &String) -> (*mut u8, Type) {
+    pub unsafe fn get_dynamicaly(&mut self, name: &String) -> Result<(*mut u8, Type), String> {
         let var = self.offsets.get(name);
         
         match var {
             Some(val) => {
-                return (self.start.add(val.offset), val.vtype);
+                return Ok((self.start.add(val.offset), val.vtype));
             },
             None => {
-                return (null::<u8>() as *mut u8, Type::Null);
+                return Err(var_not_found());
             },
         }
         

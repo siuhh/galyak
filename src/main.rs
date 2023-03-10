@@ -1,34 +1,37 @@
 #![allow(dead_code)]
 
-use compiler::parser::Parser;
-
-use crate::{runtime::interpreter::{Interpreter}, program::error_mgr};
+use crate::program::program::Prog;
 
 mod compiler;
-mod runtime;
 mod program;
+mod runtime;
 mod test;
 
 fn main() {
-    const FILE: &str = "
+    let file: String = "
+тємка а():
+    штріх цифри аб = 2 + 2 * 2
+    базар(аб) 
+    аб = аб - 2 
+    базар(аб)
+    штріх цифри абв = аб / 2
+    абв = аб * абв + 2 - аб / 2
+    базар(абв)
+.
+тємка базарсуму(цифри а, цифри б) нарішає галяк:
+    тємка базарсуму(цифри а, цифри б) нарішає галяк:
+        базар(а + б + 1)
+    . 
+    базарсуму(а * 2, б * 2)  
+.
+базарсуму(5 + 5, 10 + 10)
+а()
+".to_string();
     
-    
-    
-    
-    
-    
-штріх цифри аб = 2 + 2 * 2
-базар(аб) 
-аб = аб - 2 
-базар(аб)
-штріх цифри абв = аб / 2
-абв = аб * абв + 2 - аб / 2dasdfasdf&&^&
-базар(абв)
-";
-    let c = error_mgr::ErrorCaller::new("тест.глк".to_string(), &FILE);
-    let mut p = Parser::new(&FILE, &c);
-    
-    let asts = p.parse();
-    unsafe { let mut interpreter = Interpreter::new(asts); interpreter.run(); };
-    //test::lexer::show_tokens();
+    let prog = Prog {
+        file_content: file,
+        file_name: "test.glk".to_string(),
+        current_path: "".to_string(),
+    };
+    prog.run();
 }

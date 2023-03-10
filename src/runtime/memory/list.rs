@@ -28,8 +28,8 @@ impl Node {
     }
 }
 
-pub struct List {
-    vtype: Type,
+pub struct GlkList {
+    pub vtype: Type,
     start: *mut Node, 
     end: *mut Node,
     current: *mut Node,
@@ -37,9 +37,9 @@ pub struct List {
     size: usize,
 }
 
-impl List {
+impl GlkList {
     pub fn new(vtype: Type) -> Self {
-        return List {
+        return GlkList {
             vtype,
             start: NODE_NULL,
             end: NODE_NULL,

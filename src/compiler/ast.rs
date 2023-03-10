@@ -33,20 +33,17 @@ pub enum Ast {
         line: usize,
         statement: Box<Ast>, // DecVar | Function | Class | SetVariable | CallFunc
     },
-    StatementList {
-        statements: LinkedList<Box<Ast>>, //Statement
-    },
     Function {
         name: String,
         args: LinkedList<(String, String)>,//type + name
         return_type: String,
-        compound_statement: Box<Ast>, //StatementList
+        compound_statement: LinkedList<Box<Ast>>, //StatementList
     },
     Class {
         name: String,
         args: LinkedList<(String, String)>,
         return_type: String,
-        compound_statement: Box<Ast>, //StatementList
+        compound_statement: LinkedList<Box<Ast>>, //Declarations only
     },
 }
 pub fn deref_ast(ast: &Box<Ast>) -> Ast {
