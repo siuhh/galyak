@@ -3,7 +3,7 @@ use std::{ ptr::null, alloc::{Layout, dealloc, alloc} };
 const NODE_NULL: *mut Node = null::<Node>() as *mut Node;
 const NODE_LAYOUT: Layout = Layout::new::<Node>();
 
-use super::{types::{Type, get_layout}, errors::err_wrong_type};
+use super::types::{Type, get_layout};
 
 pub struct Node {
     next: *mut Node,

@@ -57,12 +57,11 @@ impl Prog {
         
         unsafe {
             
-            let mainf = alloc(Layout::new::<GlkFuncDeclaration>()) as *mut GlkFuncDeclaration;
-            let gfd = GlkFuncDeclaration::new(asts, LinkedList::new(), Type::Null);
-            
-            std::ptr::write(mainf, gfd);
+            let mainfptr = alloc(Layout::new::<GlkFuncDeclaration>()) as *mut GlkFuncDeclaration;
+            let mainfd = GlkFuncDeclaration::new(asts, LinkedList::new(), Type::Null);
+            std::ptr::write(mainfptr, mainfd);
 
-            let mut interpreter = Interpreter::new(mainf, &c);
+            let mut interpreter = Interpreter::new(mainfptr, &c);
         
             if show_time {
                 println!("{}", format!(
@@ -74,7 +73,7 @@ impl Prog {
             
             interpreter.run();
             interpreter.end();
-            dealloc(mainf as *mut u8, Layout::new::<GlkFuncDeclaration>());
+            dealloc(mainfptr as *mut u8, Layout::new::<GlkFuncDeclaration>());
             
             if show_time {
                 print!("{}", format!(

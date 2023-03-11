@@ -56,12 +56,6 @@ pub mod tokens {
         //static values
         pub const TRUE: TokenType = "верняк";
         pub const FALSE: TokenType = "гон";
-        
-        pub const NULL: TokenType = "галяк";
-        pub const NUM: TokenType = "цифри";
-        pub const STR: TokenType = "букви";
-        pub const BOOL: TokenType = "факт";
-        pub const CHAR: TokenType = "буква";
     }
 }
 
@@ -92,7 +86,6 @@ pub const STATIC_TOKENS: &[TokenType] = &[
     MORE,
     TRUE,
     FALSE,
-    NULL,
 ];
 #[derive(Clone, Debug)]
 pub struct Token {

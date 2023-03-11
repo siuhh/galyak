@@ -6,9 +6,8 @@ use std::collections::{LinkedList};
 use std::hash::{Hash, Hasher};
 use std::ptr::write;
 
-use super::errors::{var_not_found, err_wrong_type, var_already_exists};
-use super::types::{self, Type, STACK_LAYOUT, get_type_name};
-use super::types::get_layout;
+use super::errors::{err_var_not_found, err_wrong_type, err_var_already_exists};
+use super::types::{self, Type, STACK_LAYOUT};
 
 pub struct StackHashMap {
     pub vec: Vec<(u64, StackVariable)>,
@@ -17,6 +16,7 @@ pub struct StackHashMap {
 pub struct StackVariable {
     pub offset: usize,
     pub vtype: Type,
+    pub initialized: bool,
 }
 
 impl StackHashMap {
@@ -30,7 +30,7 @@ impl StackHashMap {
         return hasher.finish();
     }
     
-    pub fn push(&mut self, key: &String, value: StackVariable) -> Result<(), String> {
+    pub fn push(&mut self, key: &String, value: StackVariable) {
         let hashed = StackHashMap::hash(key.clone());
         let mut pos = 0;
         
@@ -38,9 +38,6 @@ impl StackHashMap {
             let n = self.vec.get(pos);
             if n.is_none() {
                 self.vec.insert(pos, (hashed, value));
-            }
-            else if n.unwrap().0 == hashed {
-                return Err(var_already_exists(key));
             }
             else if n.unwrap().0 > hashed {
                 self.vec.insert(pos, (hashed, value));
@@ -51,10 +48,9 @@ impl StackHashMap {
             }
             break;
         }
-        return Ok(());
     }
     
-    pub fn get(&mut self, key: &String) -> Option<&StackVariable> {
+    pub fn get(&mut self, key: &String) -> Option<&mut StackVariable> {
         let target = StackHashMap::hash(key.clone());
         
         let mut left: i32 = 0;
@@ -65,7 +61,7 @@ impl StackHashMap {
             let mid: i32 = left + (right - left) / 2;
 
             if self.vec[mid as usize].0 == target {
-                return Some(&self.vec[mid as usize].1);
+                return Some(&mut self.vec[mid as usize].1);
             } 
             else if self.vec[mid as usize].0 < target {
                 left = mid + 1;
@@ -100,10 +96,9 @@ impl GlkStack {
         let mut offsets = StackHashMap::new();
         
         for reservation in reserve {
-            //TODO! call error on variable names repeat
-            let _push_result = offsets.push(
+            offsets.push(
                 &reservation.name, 
-                StackVariable { offset: size, vtype: reservation.vtype }
+                StackVariable { offset: size, vtype: reservation.vtype, initialized: false }
             );
             
             let curr_size = types::get_layout(&reservation.vtype).size();
@@ -152,31 +147,50 @@ impl GlkStack {
         dealloc(self.self_ptr, STACK_LAYOUT);
     }
     
-    pub unsafe fn get_typed(&mut self, name: &String, expected_type: &Type) -> Result<*mut u8, String> {
+    pub unsafe fn get_typed(&mut self, name: &String, expected_type: &Type, expected_init_status: bool) -> Result<*mut u8, String> {
         let var = self.offsets.get(name);
         
         match var {
-            Some(val) => {
+            Some(mut val) => {
+                if expected_init_status == true && val.initialized == false {
+                    return Err(err_var_not_found(name));
+                }
+                if expected_init_status == false && val.initialized == true {
+                    return Err(err_var_already_exists(name));
+                }
                 if val.vtype != *expected_type {
                     return Err(err_wrong_type(name, expected_type, &val.vtype));
+                }
+                if expected_init_status == false {
+                    val.initialized = true;
                 }
                 return Ok(self.start.add(val.offset));
             },
             None => {
-                return Err(var_not_found(name));
+                return Err(err_var_not_found(name));
             },
         }
     }
     
-    pub unsafe fn get_dynamicaly(&mut self, name: &String) -> Result<(*mut u8, Type), String> {
+    pub unsafe fn get_dynamicaly(&mut self, name: &String, expected_init_status: bool) -> Result<(*mut u8, Type), String> {
         let var = self.offsets.get(name);
         
         match var {
             Some(val) => {
+                if expected_init_status == true && val.initialized == false {
+                    return Err(err_var_not_found(name));
+                }
+                if expected_init_status == false && val.initialized == true {
+                    return Err(err_var_already_exists(name));
+                }
+                if expected_init_status == false {
+                    val.initialized = true;
+                }
+
                 return Ok((self.start.add(val.offset), val.vtype));
             },
             None => {
-                return Err(var_not_found(name));
+                return Err(err_var_not_found(name));
             },
         }
         

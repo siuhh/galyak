@@ -12,5 +12,5 @@ pub fn cli() {
     
     //let prog = Prog::new(args[1].clone());
     let prog = Prog::new("C:\\Users\\bjejb\\Desktop\\тест.глк".to_string());
-    prog.run(true, false);
+    prog.run(false, false);
 }

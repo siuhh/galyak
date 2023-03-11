@@ -12,7 +12,7 @@ use crate::{
             Token, TokenType,
         }, errors::err_unexpected_token,
     }, 
-    program::error_mgr::ErrorCaller,
+    program::error_mgr::ErrorCaller, runtime::memory::types::T_NULL,
 };
 
 use super::ast::Ast;
@@ -80,14 +80,20 @@ impl<'a> Parser<'a> {
         if token.name == NUMBER {
             let num = self.eat(NUMBER).value;
             return Ast::Num(num.parse::<f64>().unwrap());
-        } else if token.name == NAME {
+        } 
+        else if token.name == STR {
+            let str = self.eat(STR).value;
+            return Ast::String(str);
+        } 
+        else if token.name == NAME {
             let next = self.peak().name;
             
             return match next {
                 LPAR => self.st_call_func(),
                 _ => Ast::Keyword(self.eat(NAME).value)
             };
-        } else if token.name == LPAR {
+        } 
+        else if token.name == LPAR {
             self.eat(LPAR);
             let node = self.st_expr();
             self.eat(RPAR);
@@ -247,17 +253,10 @@ impl<'a> Parser<'a> {
         
         if self.current_token.name == RET_RYPE {
             self.eat(RET_RYPE);
-            if self.current_token.name == NULL {
-                self.eat(NULL);
-                return_type = NULL.to_string();
-            }
-            else {
-                return_type = self.eat(NAME).value;
-            }
+            return_type = self.eat(NAME).value;
         }
-        
         else {
-            return_type = NULL.to_string();
+            return_type = T_NULL.to_string();
         }
         
         self.eat(COMPOUND_START);
