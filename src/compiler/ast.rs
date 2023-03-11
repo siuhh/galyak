@@ -4,6 +4,7 @@ use super::token::Token;
 #[derive(Clone, Debug)]
 pub enum Ast {
     Nothing,
+    End,
     Num(f64),
     Keyword(String),
     String(String),

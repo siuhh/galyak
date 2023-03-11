@@ -1,6 +1,6 @@
 use std::alloc::Layout;
 
-use crate::runtime::func::GlkFuncDeclaration;
+use crate::{runtime::func::GlkFuncDeclaration, compiler::token::tokens::stat::{NULL, NUM, BOOL, CHAR}};
 
 use super::{storage::GlkStack, list::GlkList};
 
@@ -44,10 +44,24 @@ pub fn get_layout(t: &Type) -> Layout {
 
 pub fn get_type(t: &String) -> Type {
     return match t.as_str() {
-        "цифри" => Type::Number,
-        "af" => Type::Bool,//TODO!
-        "буква" => Type::Char,
-        "галяк" => Type::Null,
+        NUM => Type::Number,
+        BOOL => Type::Bool,//TODO!
+        CHAR => Type::Char,
+        NULL => Type::Null,
         _ => Type::Class,
+    }
+}
+
+pub fn get_type_name(t: &Type) -> String {
+    return match t {
+        Type::Null   => NULL.to_string(),
+        Type::Number => NUM.to_string(),
+        Type::Char   => CHAR.to_string(),
+        Type::Bool   => BOOL.to_string(),
+        Type::Stack  => todo!(),
+        Type::Func   => todo!(),
+        Type::List   => todo!(),
+        Type::String => todo!(),
+        Type::Class  => todo!(),
     }
 }

@@ -1,10 +1,8 @@
+use core::panic;
+
 use crate::compiler::token::Token;
 use colored::Colorize;
 
-pub struct ErrorCaller {
-    file_name: String,
-    file: String,
-}
 
 fn print_tab(size: usize) {
     for _ in 0..size {
@@ -29,12 +27,17 @@ fn sub_str(message: &str, start: usize, end: usize) -> String {
 fn get_num_size(num: usize) -> usize {
     return num / 10 + 1;
 }
+pub struct ErrorCaller {
+    file_name: String,
+    file: String,
+    debug: bool,
+}
     
 impl ErrorCaller {
-    pub fn new(file_name: &String, file: &String) -> ErrorCaller {
+    pub fn new(file_name: &String, file: &String, debug: bool) -> ErrorCaller {
         let file_name = file_name.clone();
         let file = file.clone();
-        return ErrorCaller { file, file_name };
+        return ErrorCaller { file, file_name, debug };
     }
     
     fn comp_err_head(&self, line: usize, ch: usize, message: &String) {
@@ -118,6 +121,12 @@ impl ErrorCaller {
         print!("{}", message.red());
     }
     
+    fn end(&self) {
+        if self.debug {
+            panic!();
+        }std::process::exit(0);
+    }
+    
     pub fn comp_error(&self, message: String, token: &Token) {
         let line = token.line;
         let ch = token.on_char;
@@ -126,7 +135,7 @@ impl ErrorCaller {
         self.comp_err_line(line, ch, token.value.chars().count());
         self.comp_err_message(get_num_size(line), ch, token.value.chars().count(), &message);
         
-        panic!();
+        self.end();
     }
     
     pub fn runt_error(&self, message: String, line: usize) {
@@ -135,6 +144,6 @@ impl ErrorCaller {
         self.runt_err_line(line);
         self.runt_err_message(get_num_size(line), &message);
         
-        std::process::exit(0);
+        self.end();
     }
 }

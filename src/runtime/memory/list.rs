@@ -98,7 +98,7 @@ impl GlkList {
         let real_layout = Layout::new::<T>();
         
         if expected_layout != real_layout {
-            return Err(err_wrong_type());
+            //TODO! call err here
         }
         
         let value_ptr = alloc(expected_layout);

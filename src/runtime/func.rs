@@ -31,7 +31,8 @@ unsafe fn init_stack_res(call_stack: &LinkedList<Box<Ast>>) -> LinkedList<VarInf
 pub struct GlkFuncDeclaration {
     pub call_stack: LinkedList<Box<Ast>>,
     pub stack_reservation: LinkedList<VarInfo>,
-    pub args: LinkedList<VarInfo>//type, name
+    pub args: LinkedList<VarInfo>,
+    pub return_type: Type
 }
 
 impl GlkFuncDeclaration {
@@ -49,6 +50,6 @@ impl GlkFuncDeclaration {
             stack_reservation.push_back(result_value);
         }
         
-        return GlkFuncDeclaration { call_stack, stack_reservation, args };
+        return GlkFuncDeclaration { call_stack, stack_reservation, args, return_type };
     }
 }

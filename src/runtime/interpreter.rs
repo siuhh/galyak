@@ -10,8 +10,7 @@ use super::{
     func::GlkFuncDeclaration,
     memory::{
         storage::{GlkStack, VarInfo},
-        types::{get_type, Type},
-        var::*,
+        types::{get_type, Type}, var::var_num,
     },
 };
 
@@ -19,6 +18,7 @@ pub struct Interpreter<'a> {
     call_stack: LinkedList<Box<Ast>>,
     mem_stack: *mut GlkStack,
     error_caller: &'a ErrorCaller,
+    return_type: Type,
     curr_line: usize,
 }
 
@@ -41,6 +41,7 @@ impl<'a> Interpreter<'a> {
             call_stack: (*func).call_stack.clone(),
             mem_stack,
             error_caller,
+            return_type: (*func).return_type,
             curr_line: 0,
         };
     }
@@ -55,8 +56,12 @@ impl<'a> Interpreter<'a> {
             }
         }
     }
+    
+    unsafe fn auto(&self, expr: Ast) {
+        
+    }
 
-    unsafe fn num(&mut self, bin: Ast) -> f64 {
+    pub unsafe fn num(&mut self, bin: Ast) -> f64 {
         match bin {
             Ast::Num(value) => value,
             Ast::Expression { left, op, right } => match op.value.as_str() {
@@ -67,6 +72,7 @@ impl<'a> Interpreter<'a> {
                 _ => panic!(),
             },
             Ast::Keyword(value) => self.unwrap(var_num(self.mem_stack, &value)),
+            Ast::CallFunc { name, args } => self.call_func::<f64>(name, args, Type::Number).unwrap(),
             _ => panic!(),
         }
     }
@@ -144,12 +150,24 @@ impl<'a> Interpreter<'a> {
         
     }
     
-    pub unsafe fn call_func(&mut self, name: String, passed_args: LinkedList<Box<Ast>>) {
+    unsafe fn call_func<T: Clone> (
+        &mut self, 
+        name: String, 
+        passed_args: LinkedList<Box<Ast>>, 
+        expected_return: Type
+    ) -> Option<T> {
         if name == "базар" {
             for arg in &passed_args {
-                println!("{}", self.num(deref_ast(arg)));
+                print!("{} ", self.num(deref_ast(arg)));
             }
-            return;
+            return None;
+        }
+        if name == "базарлн" {
+            for arg in &passed_args {
+                print!("{} ", self.num(deref_ast(arg)));
+            }
+            println!();
+            return None;
         }
         
         let declared_func = self.unwrap(var_fn(self.mem_stack, &name));
@@ -176,6 +194,36 @@ impl<'a> Interpreter<'a> {
         }
         
         func_interpreter.run();
+        
+        if expected_return != Type::Null {
+            let val = { 
+                let res = (*func_interpreter.mem_stack).get_typed(&"#".to_string(), &expected_return);
+                (*(self.unwrap(res) as *mut T)).clone()
+            };
+            
+            func_interpreter.end();
+        
+            return Some(val);   
+        }
+        
+        func_interpreter.end();
+        
+        return None;
+    }
+    
+
+    unsafe fn retrn(&mut self, expression: Box<Ast>) {
+        //TODO! викидати норм помилку якшо ретурн функції це нулл і вона шось ретурнить
+        let ptr = { 
+            let res = (*self.mem_stack).get_typed(&"#".to_string(), &self.return_type);
+            self.unwrap(res)
+        };
+        match self.return_type {
+            Type::Number => {
+                write(ptr as *mut f64, self.num(deref_ast(&expression)));
+            }
+            _ => todo!(),
+        }
     }
 
     pub unsafe fn end(&mut self) {
@@ -193,7 +241,10 @@ impl<'a> Interpreter<'a> {
                 
                 match stat {
                     Ast::CallFunc { name, args } => {
-                        self.call_func(name, args);
+                        self.call_func::<u8>(name, args, Type::Null);
+                    }
+                    Ast::Return { expression } => {
+                        self.retrn(expression);
                     }
                     Ast::Function { name, args, return_type, compound_statement } => {
                         self.declare_function(name, args, return_type, compound_statement);

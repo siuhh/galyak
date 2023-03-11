@@ -24,6 +24,10 @@ fn is_symbol(ch: &char) -> bool {
     return ['(', ')', '>', '=', '<', '!', ',', '.', ':'].contains(ch);
 }
 
+fn is_name_part(ch: &char) -> bool {
+    return ch.is_alphanumeric() || ch == &'_';
+}
+
 impl<'a> Lexer<'a> {
     pub fn new(file: String, caller: &'a ErrorCaller) -> Lexer<'a> {
         let mut lexer = Lexer {
@@ -86,7 +90,7 @@ impl<'a> Lexer<'a> {
     fn get_word(&mut self) -> String {
         let mut word: String = String::new();
 
-        while !self.eof() && self.curr_char.is_alphabetic() {
+        while !self.eof() && is_name_part(&self.curr_char) {
             word.push(self.curr_char);
             self.advance();
         }
@@ -94,7 +98,7 @@ impl<'a> Lexer<'a> {
         return word;
     }
 
-    fn get_static_token(&mut self) -> Token {
+    fn get_text_token(&mut self) -> Token {
         let l = self.curr_line;
         let c = self.line_char;
 
@@ -194,9 +198,6 @@ impl<'a> Lexer<'a> {
             return self.get_str_token();
         }
 
-        if curr.is_alphabetic() {
-            return self.get_static_token();
-        }
 
         if is_symbol(&curr) {
             return self.get_symbol_token();
@@ -204,6 +205,10 @@ impl<'a> Lexer<'a> {
 
         if curr.is_numeric() {
             return self.get_number_token();
+        }
+        
+        if is_name_part(&curr) {
+            return self.get_text_token();
         }
 
         if is_ariphmetic_op(&curr) {

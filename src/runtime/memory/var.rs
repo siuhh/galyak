@@ -24,27 +24,22 @@ pub unsafe fn var_list_dyn(mem_stack: *mut GlkStack, name: &String) -> Result<*m
     }
 }
 
-pub unsafe fn var_str(mem_stack: *mut GlkStack, name: &String) -> Result<*mut GlkList, String> {
-    let list = var_list_dyn(mem_stack, name);
+pub unsafe fn var_fn(mem_stack: *mut GlkStack, name: &String) -> Result<*mut GlkFuncDeclaration, String> {
+    let ptr = (*mem_stack).get_typed(name, &Type::Func);
     
-    match list {
-        Ok(value) => {
-            if (*value).vtype == Type::Char {
-                return Ok(value)  
-            }
-            return Err(err_wrong_type());
-        },
+    match ptr {
+        Ok(value) => return Ok(value as *mut GlkFuncDeclaration),
         Err(err) => {
             return Err(err);
         },
     }
 }
 
-pub unsafe fn var_fn(mem_stack: *mut GlkStack, name: &String) -> Result<*mut GlkFuncDeclaration, String> {
-    let ptr = (*mem_stack).get_typed(name, &Type::Func);
+pub unsafe fn var_str(mem_stack: *mut GlkStack, name: &String) -> Result<*mut String, String> {
+    let ptr = (*mem_stack).get_typed(name, &Type::String);
     
     match ptr {
-        Ok(value) => return Ok(value as *mut GlkFuncDeclaration),
+        Ok(value) => return Ok(value as *mut String),
         Err(err) => {
             return Err(err);
         },

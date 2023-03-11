@@ -63,6 +63,15 @@ impl<'a> Parser<'a> {
         self.error_caller.comp_error(err_unexpected_token(&self.current_token), &self.current_token);
         panic!();
     }
+    
+    fn break_line(&mut self) {
+        if self.current_token.name == EOL {
+            self.eat(EOL);
+        }
+        if self.current_token.name == EOF {
+            self.eat(EOF);
+        }
+    }
 
     //factor : INTEGER | STRING | VAR | CALL_FUNC | LEFT_PARENTHESIS expr RIGHT_PARENTHESIS
     fn st_factor(&mut self) -> Ast {
@@ -266,7 +275,7 @@ impl<'a> Parser<'a> {
             FUNC => self.st_dec_func(),
             VAR => {
                 let dec_var = self.st_dec_var();
-                self.eat(EOL);
+                self.break_line();
                 return dec_var;
             },
             CLASS => todo!(), //TODO!
@@ -293,16 +302,16 @@ impl<'a> Parser<'a> {
                     self.error_caller.comp_error(err_unexpected_token(&self.current_token), &self.current_token);
                     panic!();
                 }
-                self.eat(EOL);
+                self.break_line();
                 return expr;
             },
             RETURN => {
                 let ret = self.st_return();
-                self.eat(EOL);
+                self.break_line();
                 return ret;
             },
             EOL => { //skip empty line
-                self.eat(EOL);
+                self.break_line();
                 return Ast::Nothing;
             }
             _ => self.declaration_statement(),
