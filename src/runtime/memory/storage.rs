@@ -6,7 +6,7 @@ use std::collections::{LinkedList};
 use std::hash::{Hash, Hasher};
 use std::ptr::write;
 
-use super::errors::{err_var_not_found, err_wrong_type, err_var_already_exists};
+use crate::program::errors::runtime::*;
 use super::types::{self, Type, STACK_LAYOUT};
 
 pub struct StackHashMap {
@@ -153,13 +153,13 @@ impl GlkStack {
         match var {
             Some(mut val) => {
                 if expected_init_status == true && val.initialized == false {
-                    return Err(err_var_not_found(name));
+                    return Err(var_not_found(name));
                 }
                 if expected_init_status == false && val.initialized == true {
-                    return Err(err_var_already_exists(name));
+                    return Err(var_already_exists(name));
                 }
                 if val.vtype != *expected_type {
-                    return Err(err_wrong_type(name, expected_type, &val.vtype));
+                    return Err(wrong_type(name, expected_type, &val.vtype));
                 }
                 if expected_init_status == false {
                     val.initialized = true;
@@ -167,7 +167,7 @@ impl GlkStack {
                 return Ok(self.start.add(val.offset));
             },
             None => {
-                return Err(err_var_not_found(name));
+                return Err(var_not_found(name));
             },
         }
     }
@@ -178,10 +178,10 @@ impl GlkStack {
         match var {
             Some(val) => {
                 if expected_init_status == true && val.initialized == false {
-                    return Err(err_var_not_found(name));
+                    return Err(var_not_found(name));
                 }
                 if expected_init_status == false && val.initialized == true {
-                    return Err(err_var_already_exists(name));
+                    return Err(var_already_exists(name));
                 }
                 if expected_init_status == false {
                     val.initialized = true;
@@ -190,7 +190,7 @@ impl GlkStack {
                 return Ok((self.start.add(val.offset), val.vtype));
             },
             None => {
-                return Err(err_var_not_found(name));
+                return Err(var_not_found(name));
             },
         }
         

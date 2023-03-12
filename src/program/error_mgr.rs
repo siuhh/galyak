@@ -77,20 +77,31 @@ impl ErrorCaller {
         );
     }
     
-    fn runt_err_line(&self, line_num: usize) {
-        let line = self.file.split('\n').nth(line_num - 1).unwrap();
-        let offset = get_num_size(line_num);
+    fn runt_err_line(&self, line_num: usize, message: &String) {
+        let mut line: &str;
         
-        //file name
-        print_tab(offset + 1);
-        print!("{}:\n", self.file_name.yellow().bold());
-        println!();
+        if line_num > 1 {
+            line = self.file.split('\n').nth(line_num - 2).unwrap();
+            //line number
+            print!("{} | ", (line_num - 1).to_string().yellow());
+            //line content 
+            println!("{}\n", &line);
+        }
+        
+        line = self.file.split('\n').nth(line_num - 1).unwrap();
         //line number
-        
-        print!("{} | ", line_num.to_string().yellow().bold());
-        
+        print!("{}{}", line_num.to_string().yellow().bold(), " | ".bold());
         //line content 
-        println!("{}", &line.red().bold());
+        print!("{}", &line.bold());
+        println!("{}{}\n", " <- ".red().bold(),  message.red().bold());
+        
+        if line_num < self.file.split("\n").count() {
+            line = self.file.split('\n').nth(line_num).unwrap();
+            //line number
+            print!("{} | ", (line_num + 1).to_string().yellow());
+            //line content 
+            println!("{}", &line);
+        }
     }
     
     fn comp_err_message(&self, offset: usize, ch: usize, err_length: usize, message: &String) {
@@ -104,7 +115,7 @@ impl ErrorCaller {
         
         let mut msg_offset: usize = 0;
 
-        if ch  + err_length / 2 > message.chars().count() / 2 {
+        if ch + err_length / 2 > message.chars().count() / 2 {
             msg_offset = ch  + err_length / 2 - message.chars().count() / 2;
         }
         
@@ -139,10 +150,15 @@ impl ErrorCaller {
     }
     
     pub fn runt_error(&self, message: String, line: usize) {
+        let offset = get_num_size(line);
 
         self.runt_err_head(line, &message);
-        self.runt_err_line(line);
-        self.runt_err_message(get_num_size(line), &message);
+        
+        //file name
+        print_tab(offset + 1);
+        println!("{}:\n", self.file_name.yellow().bold());
+        self.runt_err_line(line, &message);
+        //self.runt_err_message(get_num_size(line), &message);
         
         self.end();
     }

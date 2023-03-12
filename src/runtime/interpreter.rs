@@ -4,13 +4,14 @@ use std::{collections::LinkedList, ptr::{null, write}, alloc::{alloc, dealloc}};
 use crate::{
     compiler::ast::{deref_ast, Ast},
     program::error_mgr::ErrorCaller, runtime::{memory::var::var_fn},
+    program::errors::runtime::*
 };
 
 use super::{
     func::GlkFuncDeclaration,
     memory::{
         storage::{GlkStack, VarInfo},
-        types::{get_type, Type, FLOAT_LAYOUT, STRING_LAYOUT, get_layout}, var::{var_num, var_str}, errors::err_wrong_type,
+        types::{get_type, Type, FLOAT_LAYOUT, STRING_LAYOUT, get_layout}, var::{var_num, var_str}
     },
 };
 
@@ -20,6 +21,7 @@ pub struct Interpreter<'a> {
     error_caller: &'a ErrorCaller,
     return_type: Type,
     curr_line: usize,
+    name: String
 }
 
 unsafe fn is_null(ptr: *mut u8) -> bool {
@@ -43,6 +45,7 @@ impl<'a> Interpreter<'a> {
             error_caller,
             return_type: (*func).return_type,
             curr_line: 0,
+            name: (*func).name.clone()
         };
     }
     
@@ -159,22 +162,47 @@ impl<'a> Interpreter<'a> {
             },
             Ast::Keyword(value) => self.unwrap(var_num(self.mem_stack, &value)),
             Ast::CallFunc { name, args } => self.call_func::<f64>(name, args, Type::Number).unwrap(),
-            _ => panic!(),//TODO! тут нори помилку викинути
+            _ => {
+                self.end_with_error(type_expected(&Type::Number));
+                panic!();
+            },
         }
     }
 
     pub unsafe fn string(&mut self, str: Ast) -> String {
-        match str {
+        match str.clone() {
             Ast::String(value) => value,
             Ast::Expression { left, op, right } => match op.value.as_str() {
                 "+" => self.string(*left) + self.string(*right).as_str(),
-                _ => {
-                    panic!();
-                }
+                _ => self.num(str).to_string()
             },
-            Ast::Keyword(name) => self.unwrap(var_str(self.mem_stack, &name)),
+            Ast::Num(_) => {
+                let n = self.num(str);
+                n.to_string()
+            },
+            Ast::Keyword(name) => {
+                let var = {
+                    let res = (*self.mem_stack).get_dynamicaly(&name, true);
+                    self.unwrap(res)
+                };
+                
+                let string = match var.1 {
+                    Type::String => {
+                        self.unwrap(var_str(self.mem_stack, &name))
+                    },
+                    Type::Number => {
+                        self.num(str).to_string()
+                    }
+                    _ => todo!(),
+                };
+                
+                return string;
+            },
             Ast::CallFunc { name, args } => self.call_func::<String>(name, args, Type::String).unwrap(),
-            _ => panic!(),//TODO! тут нори помилку викинути
+            _ =>  {
+                self.end_with_error(type_expected(&Type::String));
+                panic!();
+            },
         }
     }
 
@@ -232,7 +260,7 @@ impl<'a> Interpreter<'a> {
             parsed_args.push_back(VarInfo { vtype: get_type(&arg.0), name: arg.1 });
         }
         
-        let func = GlkFuncDeclaration::new(compound_statement, parsed_args, get_type(&return_type));
+        let func = GlkFuncDeclaration::new(compound_statement, parsed_args, get_type(&return_type), name);
         
         write(ptr as *mut GlkFuncDeclaration, func);
         
@@ -259,28 +287,41 @@ impl<'a> Interpreter<'a> {
             }
             
             self.end_with_error(
-                err_wrong_type(&name, &expected_return, &vtype)
+                wrong_type(&name, &expected_return, &vtype)
             );
             panic!();
         }  
         let declared_func = self.unwrap(var_fn(self.mem_stack, &name));
+        
+        if (*declared_func).return_type != expected_return {
+            self.end_with_error(wrong_type(&name, &expected_return, &(*declared_func).return_type))
+        }
         
         let mut args_iter = passed_args.iter();
         
         let mut func_interpreter = Interpreter::new(declared_func, self.error_caller);
         let intpr_mem = func_interpreter.mem_stack;
         
-        //TODO! перевіряти кількість аргів
+        if passed_args.len() != (*declared_func).args.len() {
+            self.end_with_error(
+                wrong_arguments_count(
+                    &name, 
+                    (*declared_func).args.len(),
+                    passed_args.len(), 
+                )
+            );
+        }
+        
         //move arguments values to call stack
         for arg in &(*declared_func).args {
             match arg.vtype {
                 Type::Number => {
                     let ptr = self.unwrap((*intpr_mem).get_typed(&arg.name, &arg.vtype, false));
-                    *(ptr as *mut f64) = self.num(deref_ast(&args_iter.next().unwrap()));
+                    write(ptr as *mut f64, self.num(deref_ast(&args_iter.next().unwrap())));
                 }
                 Type::String => {
                     let ptr = self.unwrap((*intpr_mem).get_typed(&arg.name, &arg.vtype, false));
-                    *(ptr as *mut String) = self.string(deref_ast(&args_iter.next().unwrap()));
+                    write(ptr as *mut String, self.string(deref_ast(&args_iter.next().unwrap())));
                 }
                 _ => todo!() //TODO!
             }
@@ -309,13 +350,18 @@ impl<'a> Interpreter<'a> {
         //TODO! викидати норм помилку якшо ретурн функції це нулл і вона шось ретурнить
         let ptr = { 
             let res = (*self.mem_stack).get_typed(&"#".to_string(), &self.return_type, false);
-            self.unwrap(res)
+            if let Err(_) = res {
+                self.end_with_error(wrong_return_type(&self.name, &self.return_type));
+            }
+            res.unwrap()
         };
         match self.return_type {
             Type::Number => {
+                self.call_stack.clear();
                 write(ptr as *mut f64, self.num(deref_ast(&expression)));
             },
             Type::String => {
+                self.call_stack.clear();
                 write(ptr as *mut String, self.string(deref_ast(&expression)));
             },
             _ => todo!(),

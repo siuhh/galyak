@@ -58,7 +58,7 @@ impl Prog {
         unsafe {
             
             let mainfptr = alloc(Layout::new::<GlkFuncDeclaration>()) as *mut GlkFuncDeclaration;
-            let mainfd = GlkFuncDeclaration::new(asts, LinkedList::new(), Type::Null);
+            let mainfd = GlkFuncDeclaration::new(asts, LinkedList::new(), Type::Null, "main".to_string());
             std::ptr::write(mainfptr, mainfd);
 
             let mut interpreter = Interpreter::new(mainfptr, &c);

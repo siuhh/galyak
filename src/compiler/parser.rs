@@ -10,10 +10,11 @@ use crate::{
                 stat::*,
             },
             Token, TokenType,
-        }, errors::err_unexpected_token,
+        }
     }, 
     program::error_mgr::ErrorCaller, runtime::memory::types::T_NULL,
 };
+use crate::program::errors::compilation::unexpected_token;
 
 use super::ast::Ast;
 pub struct Parser<'a> {
@@ -60,7 +61,7 @@ impl<'a> Parser<'a> {
             
             return prev;
         }
-        self.error_caller.comp_error(err_unexpected_token(&self.current_token), &self.current_token);
+        self.error_caller.comp_error(unexpected_token(&self.current_token), &self.current_token);
         panic!();
     }
     
@@ -99,7 +100,7 @@ impl<'a> Parser<'a> {
             self.eat(RPAR);
             return node;
         }
-        self.error_caller.comp_error(err_unexpected_token(&self.current_token), &self.current_token);
+        self.error_caller.comp_error(unexpected_token(&self.current_token), &self.current_token);
         panic!();
     }
     //term   : factor ((MUL | DIV) factor)*
@@ -279,7 +280,7 @@ impl<'a> Parser<'a> {
             },
             CLASS => todo!(), //TODO!
             _ => {
-                self.error_caller.comp_error(err_unexpected_token(&self.current_token), &self.current_token);
+                self.error_caller.comp_error(unexpected_token(&self.current_token), &self.current_token);
                 panic!();
             }
         }
@@ -298,7 +299,7 @@ impl<'a> Parser<'a> {
                     expr = self.st_call_func();
                 }
                 else {
-                    self.error_caller.comp_error(err_unexpected_token(&self.current_token), &self.current_token);
+                    self.error_caller.comp_error(unexpected_token(&self.current_token), &self.current_token);
                     panic!();
                 }
                 self.break_line();

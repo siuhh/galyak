@@ -33,13 +33,15 @@ pub struct GlkFuncDeclaration {
     pub stack_reservation: LinkedList<VarInfo>,
     pub args: LinkedList<VarInfo>,
     pub return_type: Type,
+    pub name: String,
 }
 
 impl GlkFuncDeclaration {
     pub unsafe fn new(
         call_stack: LinkedList<Box<Ast>>, 
         args: LinkedList<VarInfo>, 
-        return_type: Type
+        return_type: Type,
+        name: String
     ) -> Self {
         let mut stack_reservation = init_stack_res(&call_stack);
         
@@ -54,7 +56,7 @@ impl GlkFuncDeclaration {
             stack_reservation.push_back(result_value);
         }
         
-        return GlkFuncDeclaration { call_stack, stack_reservation, args, return_type };
+        return GlkFuncDeclaration { call_stack, stack_reservation, args, return_type, name };
     }
 }
 
@@ -67,11 +69,11 @@ impl<'a> Interpreter<'a> {
             
             match vtype {
                 Type::Number => {
-                    print!("{}", *(val_ptr as *mut f64));
+                    print!("{} ", *(val_ptr as *mut f64));
                     dealloc(val_ptr, FLOAT_LAYOUT);
                 },
                 Type::String => {
-                    print!("{}", *(val_ptr as *mut String));
+                    print!("{} ", *(val_ptr as *mut String));
                     dealloc(val_ptr, STRING_LAYOUT);
                 },
                 _ => todo!()

@@ -1,10 +1,12 @@
 use crate::program::error_mgr::ErrorCaller;
 
-use super::{token::{
+use super::token::{
     self,
     tokens::{self, dynamic::UNKNOWN, stat::EOL},
     Token
-}, errors::{err_unmatched_quote, err_unknown_token}};
+};
+
+use crate::program::errors::compilation::{unmatched_quote, unknown_token};
 
 pub struct Lexer<'a> {
     file: String,
@@ -133,7 +135,7 @@ impl<'a> Lexer<'a> {
                     tokens::dynamic::STR,
                     str_val.to_string(),
                 );
-                self.error_caller.comp_error(err_unmatched_quote(), t);
+                self.error_caller.comp_error(unmatched_quote(), t);
                 break;
             }
         }
@@ -228,7 +230,7 @@ impl<'a> Lexer<'a> {
             String::from(curr),
         );
 
-        self.error_caller.comp_error(err_unknown_token(&ut), &ut);
+        self.error_caller.comp_error(unknown_token(&ut), &ut);
         return ut;
     }
 }
