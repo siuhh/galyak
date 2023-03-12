@@ -17,14 +17,14 @@ pub mod tokens {
         use crate::compiler::token::TokenType;
 
         pub const EOF: TokenType = "кінець";
-        pub const EOL: TokenType = "крч";
+        pub const EOL: TokenType = "кінець строки";
 
         //brackets
         pub const LPAR: TokenType = "(";
         pub const RPAR: TokenType = ")";
         pub const COMPOUND_START: TokenType = ":";
-        pub const COMPOUND_END: TokenType = "крч";
-        
+        pub const COMPOUND_END: TokenType = ".";
+
         pub const COMA: TokenType = ",";
 
         //declatarions
@@ -54,16 +54,14 @@ pub mod tokens {
         pub const MORE: TokenType = "більше";
 
         //static values
-        pub const TRUE: TokenType = "база";
+        pub const TRUE: TokenType = "верняк";
         pub const FALSE: TokenType = "гон";
-        pub const NULL: TokenType = "галяк";
     }
 }
 
 use self::tokens::stat::*;
 
 pub const STATIC_TOKENS: &[TokenType] = &[
-    EOL,
     LPAR,
     RPAR,
     COMPOUND_START,
@@ -88,7 +86,6 @@ pub const STATIC_TOKENS: &[TokenType] = &[
     MORE,
     TRUE,
     FALSE,
-    NULL,
 ];
 #[derive(Clone, Debug)]
 pub struct Token {
@@ -99,7 +96,7 @@ pub struct Token {
 }
 
 impl Token {
-    pub fn new(name: TokenType, val: String, line: usize, ch: usize) -> Token {
+    pub fn new(line: usize, ch: usize, name: TokenType, val: String) -> Token {
         return Token {
             name,
             value: val,
@@ -108,6 +105,7 @@ impl Token {
         };
     }
 }
+
 impl Display for Token {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write!(

@@ -1,26 +1,35 @@
 #![allow(dead_code)]
 
-use compiler::parser::Parser;
-
-use crate::runtime::interpreter::{Interpreter};
+use program::cli::cli;
 
 mod compiler;
+mod program;
 mod runtime;
-mod error_mgr;
 
 fn main() {
-    const FILE: &str = "
-штріх цифри аб = 2 + 2 * 2 крч
-аб = аб - 2 крч
-базар(абв) крч
-базар(аб) крч
-штріх цифри абв = аб / 2 крч
-абв = аб * абв + 2 - аб / 2 крч
-базар(абв) крч
-";
-    let c = error_mgr::CompilationError::new("test".to_string(), &FILE);
-    let mut p = Parser::new(&FILE, &c);
-    
-    let asts = p.parse();
-    unsafe { let mut interpreter = Interpreter::new(asts); interpreter.run(); };
+    cli();
+//     let file: String = "
+// тємка а():
+//     штріх цифри аб = 2 + 2 * 2
+//     базар(аб) 
+//     аб = аб - 2 
+//     базар(аб)
+//     штріх цифри абв = аб / 2
+//     абв = аб * абв + 2 - аб / 2
+//     базар(абв)
+// .
+// тємка сума(цифри а, цифри б) нарішає цифри:
+//     рішани а + б
+// .
+// штріх цифри a1 = сума(5, 10)
+
+// базарлн(a1, a1, a1, a1)
+
+// а()
+// ".to_string();
+//     let prog = Prog {
+//         file_content: file,
+//         file_name: "test.glk".to_string(),
+//     };
+//     prog.run(false, false);
 }

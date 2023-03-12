@@ -1,33 +1,41 @@
 use core::alloc::Layout;
-use std::alloc::{self, dealloc, alloc};
+use std::alloc::{self, dealloc};
 
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{LinkedList};
 use std::hash::{Hash, Hasher};
-use std::ptr::null;
+use std::ptr::write;
 
+use crate::program::errors::runtime::*;
 use super::types::{self, Type, STACK_LAYOUT};
-use super::types::get_layout;
 
 pub struct StackHashMap {
     pub vec: Vec<(u64, StackVariable)>,
 }
+
+pub struct StackVariable {
+    pub offset: usize,
+    pub vtype: Type,
+    pub initialized: bool,
+}
+
 impl StackHashMap {
     pub fn new() -> Self {
-        return  StackHashMap { vec: Vec::new() };
+        return StackHashMap { vec: Vec::new() };
     }
+    
     fn hash(str: String) -> u64 {
         let hasher = &mut DefaultHasher::new();
         str.hash(hasher);
         return hasher.finish();
     }
+    
     pub fn push(&mut self, key: &String, value: StackVariable) {
         let hashed = StackHashMap::hash(key.clone());
         let mut pos = 0;
         
         loop {
             let n = self.vec.get(pos);
-            
             if n.is_none() {
                 self.vec.insert(pos, (hashed, value));
             }
@@ -41,21 +49,24 @@ impl StackHashMap {
             break;
         }
     }
-    pub fn get(&mut self, key: &String) -> Option<&StackVariable> {
+    
+    pub fn get(&mut self, key: &String) -> Option<&mut StackVariable> {
         let target = StackHashMap::hash(key.clone());
         
-        let mut left = 0;
-        let mut right = self.vec.len() - 1;
+        let mut left: i32 = 0;
+        let mut right: i32 = (self.vec.len() - 1) as i32;
 
         //bin search
         while left <= right {
-            let mid = left + (right - left) / 2;
+            let mid: i32 = left + (right - left) / 2;
 
-            if self.vec[mid].0 == target {
-                return Some(&self.vec[mid].1);
-            } else if self.vec[mid].0 < target {
+            if self.vec[mid as usize].0 == target {
+                return Some(&mut self.vec[mid as usize].1);
+            } 
+            else if self.vec[mid as usize].0 < target {
                 left = mid + 1;
-            } else {
+            } 
+            else {
                 right = mid - 1;
             }
         }
@@ -63,37 +74,32 @@ impl StackHashMap {
         return None;
     }
 }
-
-
-#[derive(PartialEq)]
-pub struct StackReservation {
+#[derive(Clone)]
+pub struct VarInfo {
     pub vtype: Type,
     pub name: String,
 }
-#[derive(Debug)]
-pub struct StackVariable {
-    pub offset: usize,
-    pub vtype: Type,
-}
-
-pub struct Stack {
+pub struct GlkStack {
     pub size: usize,
     pub start: *mut u8,
     pub offsets: StackHashMap,
     pub self_ptr: *mut u8,
+    pub align: usize,
 }
 
-impl Stack {
-    pub unsafe fn alloc(reserve: LinkedList<StackReservation>) -> *mut Stack {
+impl GlkStack {
+    pub unsafe fn alloc(reserve: &LinkedList<VarInfo>) -> *mut GlkStack {
         let mut size: usize = 0;
         
         let mut align = 0;
         
         let mut offsets = StackHashMap::new();
         
-        for reservation in &reserve {
-            
-            offsets.push(&reservation.name, StackVariable { offset: size, vtype: reservation.vtype });
+        for reservation in reserve {
+            offsets.push(
+                &reservation.name, 
+                StackVariable { offset: size, vtype: reservation.vtype, initialized: false }
+            );
             
             let curr_size = types::get_layout(&reservation.vtype).size();
             
@@ -104,61 +110,90 @@ impl Stack {
             size += curr_size;
         }
         
+        //TODO! зробити шось з вирівнюванням
+        let align = 8;
+        
         let fields_ptr = alloc::alloc(Layout::from_size_align(size, align).unwrap());
-        let stack_ptr = alloc::alloc(Layout::new::<Stack>()) as *mut Stack;
+        let stack_ptr = alloc::alloc(Layout::new::<GlkStack>()) as *mut GlkStack;
         
-        (*stack_ptr).start = fields_ptr;
-        (*stack_ptr).size = size;
-        (*stack_ptr).self_ptr = stack_ptr as *mut u8;
-        (*stack_ptr).offsets = offsets;
+        let stack = GlkStack {
+            start: fields_ptr,
+            align,
+            size,
+            self_ptr: stack_ptr as *mut u8,
+            offsets,
+        };
         
+        write(stack_ptr, stack);
         
         return stack_ptr;
     }
     
-    pub unsafe fn dealloc(&mut self) {
-        dealloc(self.start, Layout::from_size_align_unchecked(self.size, 0));
+    pub unsafe fn nahuy(&mut self) {
+        for vec_el in &self.offsets.vec {
+            let var = &vec_el.1;
+            
+            match var.vtype {
+                // Type::Class => {
+                //     todo!(); //TODO! class dealloc here
+                // }
+                Type::Stack => {
+                    
+                }
+                _ => ()
+            }
+        }
+        dealloc(self.start, Layout::from_size_align(self.size, self.align).unwrap());
         dealloc(self.self_ptr, STACK_LAYOUT);
     }
     
-    pub unsafe fn get_wt(&mut self, name: &String, vtype: &Type) -> *mut u8 {
+    pub unsafe fn get_typed(&mut self, name: &String, expected_type: &Type, expected_init_status: bool) -> Result<*mut u8, String> {
         let var = self.offsets.get(name);
         
         match var {
-            Some(val) => {
-                if val.vtype != *vtype {
-                    //TODO! call error here
-                    panic!();
+            Some(mut val) => {
+                if expected_init_status == true && val.initialized == false {
+                    return Err(var_not_found(name));
                 }
-                return self.start.add(val.offset);
+                if expected_init_status == false && val.initialized == true {
+                    return Err(var_already_exists(name));
+                }
+                if val.vtype != *expected_type {
+                    return Err(wrong_type(name, expected_type, &val.vtype));
+                }
+                if expected_init_status == false {
+                    val.initialized = true;
+                }
+                return Ok(self.start.add(val.offset));
             },
             None => {
-                return null::<u8>() as *mut u8;
+                return Err(var_not_found(name));
             },
         }
-        
-        
     }
     
-    pub unsafe fn get(&mut self, name: &String) -> (*mut u8, Type) {
+    pub unsafe fn get_dynamicaly(&mut self, name: &String, expected_init_status: bool) -> Result<(*mut u8, Type), String> {
         let var = self.offsets.get(name);
         
         match var {
             Some(val) => {
-                return (self.start.add(val.offset), val.vtype);
+                if expected_init_status == true && val.initialized == false {
+                    return Err(var_not_found(name));
+                }
+                if expected_init_status == false && val.initialized == true {
+                    return Err(var_already_exists(name));
+                }
+                if expected_init_status == false {
+                    val.initialized = true;
+                }
+
+                return Ok((self.start.add(val.offset), val.vtype));
             },
             None => {
-                return (null::<u8>() as *mut u8, Type::Null);
+                return Err(var_not_found(name));
             },
         }
         
     }
-}
-
-pub struct HeapSpace {
     
-}
-
-unsafe fn heap_alloc(t: Type) -> *mut u8 {
-    return std::alloc::alloc(get_layout(&t));
 }

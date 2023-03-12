@@ -10,26 +10,29 @@ use crate::{
                 stat::*,
             },
             Token, TokenType,
-        },
-    }, error_mgr::CompilationError,
+        }
+    }, 
+    program::error_mgr::ErrorCaller, runtime::memory::types::T_NULL,
 };
+use crate::program::errors::compilation::unexpected_token;
 
 use super::ast::Ast;
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
-    error_caller: &'a CompilationError,
+    error_caller: &'a ErrorCaller,
     current_token: Token,
     peaked_token: Option<Token>,
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(file: &'static str, caller: &'a CompilationError) -> Parser<'a> {
+    pub fn new(file: &String, caller: &'a ErrorCaller) -> Parser<'a> {
+        let file = file.clone();
+        
         let mut parser = Parser {
             lexer: Lexer::new(file, caller),
             error_caller: caller,
-            current_token: Token::new(UNKNOWN, "EMPTY TOKEN".to_string(), 0, 0),
+            current_token: Token::new(0, 0, UNKNOWN, "EMPTY TOKEN".to_string(), ),
             peaked_token: None,
-            
         };
         parser.eat(UNKNOWN);
         return parser;
@@ -58,8 +61,17 @@ impl<'a> Parser<'a> {
             
             return prev;
         }
-        self.error_caller.unexpected_token(&self.current_token);
+        self.error_caller.comp_error(unexpected_token(&self.current_token), &self.current_token);
         panic!();
+    }
+    
+    fn break_line(&mut self) {
+        if self.current_token.name == EOL {
+            self.eat(EOL);
+        }
+        if self.current_token.name == EOF {
+            self.eat(EOF);
+        }
     }
 
     //factor : INTEGER | STRING | VAR | CALL_FUNC | LEFT_PARENTHESIS expr RIGHT_PARENTHESIS
@@ -69,20 +81,26 @@ impl<'a> Parser<'a> {
         if token.name == NUMBER {
             let num = self.eat(NUMBER).value;
             return Ast::Num(num.parse::<f64>().unwrap());
-        } else if token.name == NAME {
+        } 
+        else if token.name == STR {
+            let str = self.eat(STR).value;
+            return Ast::String(str);
+        } 
+        else if token.name == NAME {
             let next = self.peak().name;
             
             return match next {
                 LPAR => self.st_call_func(),
                 _ => Ast::Keyword(self.eat(NAME).value)
             };
-        } else if token.name == LPAR {
+        } 
+        else if token.name == LPAR {
             self.eat(LPAR);
             let node = self.st_expr();
             self.eat(RPAR);
             return node;
         }
-        self.error_caller.unexpected_token(&self.current_token);
+        self.error_caller.comp_error(unexpected_token(&self.current_token), &self.current_token);
         panic!();
     }
     //term   : factor ((MUL | DIV) factor)*
@@ -170,13 +188,19 @@ impl<'a> Parser<'a> {
         
         return Ast::SetVariable { name, value: Box::new(value) }
     }
+    
     pub fn st_call_func(&mut self) -> Ast {
         let name = self.eat(NAME).value;
         self.eat(LPAR);
         
         let mut args = LinkedList::<Box<Ast>>::new();
         
-        loop {
+        loop {            
+            if self.current_token.name == RPAR {
+                self.eat(RPAR);
+                break;
+            }
+            
             let arg = Box::new(self.st_expr());
             
             args.push_back(arg);
@@ -191,13 +215,14 @@ impl<'a> Parser<'a> {
         
         return Ast::CallFunc { name, args };
     }
+    
     fn st_return(&mut self) -> Ast {
         self.eat(RETURN);
         return Ast::Return { expression: Box::new(self.st_expr()) };
     }
     
     // dec_func  :  тємка #NAME LPAR (#TYPE #NAME,)* RPAR (нарішає #TYPE)? LBRACK statement_list RBRACK
-    pub fn st_def_func(&mut self) -> Ast {
+    pub fn st_dec_func(&mut self) -> Ast {
         self.eat(FUNC); 
         
         let name = self.eat(NAME).value; 
@@ -207,10 +232,15 @@ impl<'a> Parser<'a> {
         let mut args = LinkedList::<(String, String)>::new();
         
         loop {
+            if self.current_token.name == RPAR {
+                self.eat(RPAR);
+                break;
+            }
+            
             let vtype = self.eat(NAME).value;
             let vname = self.eat(NAME).value;
             
-            args.push_back((vname, vtype));
+            args.push_back((vtype, vname));
             
             if self.current_token.name == RPAR {
                 self.eat(RPAR);
@@ -220,36 +250,37 @@ impl<'a> Parser<'a> {
             self.eat(COMA);
         }
         
-        let return_type;
+        let return_type: String;
         
         if self.current_token.name == RET_RYPE {
             self.eat(RET_RYPE);
             return_type = self.eat(NAME).value;
         }
         else {
-            return_type = NULL.to_string();
+            return_type = T_NULL.to_string();
         }
+        
         self.eat(COMPOUND_START);
         let compound_statement = self.statement_list();
         self.eat(COMPOUND_END);
         
         return Ast::Function { 
             name, args, return_type, 
-            compound_statement: Box::new(compound_statement)
+            compound_statement: compound_statement
         };
     }
     //(dec_var | dec_func | dec_class)
     pub fn declaration_statement(&mut self) -> Ast {
         return match self.current_token.name {
-            FUNC => self.st_def_func(),
+            FUNC => self.st_dec_func(),
             VAR => {
                 let dec_var = self.st_dec_var();
-                self.eat(EOL);
+                self.break_line();
                 return dec_var;
             },
             CLASS => todo!(), //TODO!
             _ => {
-                self.error_caller.unexpected_token(&self.current_token);
+                self.error_caller.comp_error(unexpected_token(&self.current_token), &self.current_token);
                 panic!();
             }
         }
@@ -265,39 +296,46 @@ impl<'a> Parser<'a> {
                     expr = self.st_set_var()
                 }
                 else if peak == LPAR {
-                    expr =  self.st_call_func();
+                    expr = self.st_call_func();
                 }
                 else {
-                    self.error_caller.unexpected_token(&self.current_token);
+                    self.error_caller.comp_error(unexpected_token(&self.current_token), &self.current_token);
                     panic!();
                 }
-                self.eat(EOL);
+                self.break_line();
                 return expr;
             },
             RETURN => {
                 let ret = self.st_return();
-                self.eat(EOL);
+                self.break_line();
                 return ret;
             },
+            EOL => { //skip empty line
+                self.break_line();
+                return Ast::Nothing;
+            }
             _ => self.declaration_statement(),
-        } 
+        };
     }
     
-    pub fn statement_list(&mut self) -> Ast {
+    pub fn statement_list(&mut self) -> LinkedList::<Box<Ast>> {
         let mut statements = LinkedList::<Box<Ast>>::new(); 
         
-        while self.current_token.name != COMPOUND_END &&  self.current_token.name != EOF {
-            statements.push_back(Box::new(self.statement()));
+        while self.current_token.name != COMPOUND_END && self.current_token.name != EOF {
+            let line = self.current_token.line;
+            let statement = self.statement();
+            
+            if let Ast::Nothing = statement {
+                continue;
+            }
+            
+            statements.push_back(Box::new(Ast::Statement { line, statement: Box::new(statement) }));
         } 
-        return Ast::StatementList { statements };
+        
+        return statements;
     }
     
     pub fn parse(&mut self) -> LinkedList<Box<Ast>> { 
-        if let Ast::StatementList { statements } = self.statement_list() {
-            return statements;
-        }
-        else { 
-            panic!();
-        }
+        return self.statement_list();
     }
 }
