@@ -38,7 +38,12 @@ pub enum Ast {
         name: String,
         args: LinkedList<(String, String)>,//type + name
         return_type: String,
-        compound_statement: LinkedList<Box<Ast>>, //StatementList
+        compound_statement: LinkedList<Box<Ast>>, //Statements
+    },
+    If {
+        condition: Box<Ast>,//Expression
+        compound_statement: LinkedList<Box<Ast>>, //Statements
+        else_statement: Option<LinkedList<Box<Ast>>>,
     },
     Class {
         name: String,

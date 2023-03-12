@@ -7,12 +7,16 @@ use super::program::Prog;
 pub fn cli() {
     let args: Vec<String> = env::args().collect();
     
-    if args.len() < 2 {
+    if args.len() < 1 {
         println!("{}", "А де файл".red().bold());
         return;
     }
     
-    let prog = Prog::new(args[1].clone());
+    //let prog = Prog::new(args[1].clone());
+    let prog = Prog::new("C:\\Users\\bjejb\\Desktop\\тест.глк".to_string());
     
-    prog.run(false, false);
+    let show_time = false;
+    let debug = true;
+    
+    prog.run(show_time, debug);
 }

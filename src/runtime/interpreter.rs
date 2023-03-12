@@ -149,6 +149,7 @@ impl<'a> Interpreter<'a> {
             }
         }
     }
+    
 
     pub unsafe fn num(&mut self, bin: Ast) -> f64 {
         match bin {
@@ -210,6 +211,10 @@ impl<'a> Interpreter<'a> {
         let vtype = get_type(vtype);
         let res = (*self.mem_stack).get_typed(name, &vtype, false);
         let var_ptr = self.unwrap(res);
+        
+        if let Ast::Nothing = deref_ast(&value) {
+            return;
+        }
         
         match vtype {
             Type::Number => {
@@ -344,10 +349,14 @@ impl<'a> Interpreter<'a> {
         
         return None;
     }
-
+    
+    unsafe fn ifst(&mut self, expression: Box<Ast>) {
+        // if let Ast::If { condition, compound_statement, else_statement } = expression {
+        //     let ok = self.bool(condition);
+        // }
+    }
 
     unsafe fn retrn(&mut self, expression: Box<Ast>) {
-        //TODO! викидати норм помилку якшо ретурн функції це нулл і вона шось ретурнить
         let ptr = { 
             let res = (*self.mem_stack).get_typed(&"#".to_string(), &self.return_type, false);
             if let Err(_) = res {

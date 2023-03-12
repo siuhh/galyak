@@ -28,7 +28,7 @@ pub mod tokens {
         pub const COMA: TokenType = ",";
 
         //declatarions
-        pub const FUNC: TokenType = "тємка";
+        pub const FUNC: TokenType = "тєма";
         pub const RET_RYPE: TokenType = "нарішає";
         pub const RETURN: TokenType = "рішани";
         pub const CLASS: TokenType = "масть";

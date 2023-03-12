@@ -65,13 +65,16 @@ impl<'a> Parser<'a> {
         panic!();
     }
     
-    fn break_line(&mut self) {
+    fn break_line(&mut self) -> bool {
         if self.current_token.name == EOL {
             self.eat(EOL);
+            return true;
         }
         if self.current_token.name == EOF {
             self.eat(EOF);
+            return true;
         }
+        return false;
     }
 
     //factor : INTEGER | STRING | VAR | CALL_FUNC | LEFT_PARENTHESIS expr RIGHT_PARENTHESIS
@@ -103,14 +106,23 @@ impl<'a> Parser<'a> {
         self.error_caller.comp_error(unexpected_token(&self.current_token), &self.current_token);
         panic!();
     }
-    //term   : factor ((MUL | DIV) factor)*
+    //term   : factor ((MUL | DIV | EQUALS | LESS | MORE) factor)*
     fn st_term(&mut self) -> Ast {
         let mut node = self.st_factor();
 
-        while self.current_token.name == ARIPH_OP {
+        loop {
             let token = self.current_token.clone();
             if token.value == "*" || token.value == "/" {
                 self.eat(ARIPH_OP);
+            }
+            else if token.name == EQUALS {
+                self.eat(EQUALS);
+            }
+            else if token.name == MORE {
+                self.eat(MORE);
+            }
+            else if token.name == LESS {
+                self.eat(LESS);
             }
             else {
                 break;
@@ -142,7 +154,7 @@ impl<'a> Parser<'a> {
         }
         return node;
     }
-    //dec_var   :  (штріх #TYPE) | (штріхи #TYPE) #NAME = expr крч
+    //dec_var   :  (штріх #TYPE) | (штріхи #TYPE) #NAME (= expr)?
     pub fn st_dec_var(&mut self) -> Ast {
         let array = match self.current_token.name {
             ARRAY => {
@@ -285,6 +297,32 @@ impl<'a> Parser<'a> {
             }
         }
     }
+    pub fn st_if(&mut self) -> Ast {
+        self.eat(IF);
+        let condtition = self.st_expr();
+        
+        self.eat(COMPOUND_START);
+        let compound_statement = self.statement_list();
+        self.eat(COMPOUND_END);
+        
+        //skip empty
+        
+        while self.break_line(){ }
+        
+        let else_statement = 
+            if self.current_token.name == ELSE {
+                self.eat(ELSE);
+                self.eat(COMPOUND_START);
+                let stat = self.statement_list();
+                self.eat(COMPOUND_END);
+                Some(stat)
+            }
+            else {
+                None
+            };
+        
+        return Ast::If { condition: Box::new(condtition), compound_statement, else_statement }
+    }
     //statement : (dec_var | dec_func | call_func | dec_class | set_var | retrn)
     pub fn statement(&mut self) -> Ast {
         return match self.current_token.name {
@@ -309,6 +347,12 @@ impl<'a> Parser<'a> {
                 let ret = self.st_return();
                 self.break_line();
                 return ret;
+            },
+            IF => {
+                let ifst = self.st_if();
+                self.break_line();
+                dbg!(&ifst);
+                return ifst;
             },
             EOL => { //skip empty line
                 self.break_line();
