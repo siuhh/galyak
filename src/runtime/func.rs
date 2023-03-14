@@ -1,24 +1,21 @@
 use std::{collections::LinkedList, alloc::{dealloc, alloc}, ptr::{null_mut, write}, io::{stdout, Write}};
 
-use crate::{compiler::ast::{Ast, deref_ast}, runtime::memory::types::{FLOAT_LAYOUT, STRING_LAYOUT}};
+use crate::{compiler::ast::{Ast}, runtime::memory::types::{FLOAT_LAYOUT, STRING_LAYOUT}};
 
 use super::{memory::{storage::{VarInfo}, types::{get_type, Type}}, interpreter::{Interpreter}};
 
 unsafe fn init_stack_res(call_stack: &LinkedList<Box<Ast>>) -> LinkedList<VarInfo> {
     let mut reserve = LinkedList::<VarInfo>::new();
     
-    for cs in call_stack {
-        let mut ast = deref_ast(cs);
-        
-        if let Ast::Statement { line: _, statement } = ast {
-            ast = deref_ast(&statement);
-        
-            match ast {
+    for cs in call_stack {        
+        if let Ast::Statement { line: _, statement } = &**cs {
+            
+            match &**statement {
                 Ast::DeclareVariable { array: _, name, vtype, value: _ } => {
-                    reserve.push_back(VarInfo { vtype: get_type(&vtype), name })
+                    reserve.push_back(VarInfo { vtype: get_type(&vtype), name: name.clone() })
                 }
                 Ast::Function { name, args: _, return_type: _, compound_statement: _ } => {
-                    reserve.push_back(VarInfo { vtype: Type::Func, name })
+                    reserve.push_back(VarInfo { vtype: Type::Func, name: name.clone() })
                 }
                 _ => (),
             } 
@@ -63,7 +60,7 @@ impl GlkFuncDeclaration {
 impl<'a> Interpreter<'a> {
     unsafe fn kf_print(&mut self, passed_args: LinkedList<Box<Ast>>) {
         for arg in passed_args {
-            let expr = deref_ast(&arg);
+            let expr = *arg;
             
             let (val_ptr, vtype) = self.auto(expr);
             
@@ -95,7 +92,7 @@ impl<'a> Interpreter<'a> {
     }
     
     unsafe fn as_num(&mut self, expr: Box<Ast>) -> f64 {
-        return self.string(deref_ast(&expr)).parse::<f64>().unwrap();
+        return self.string(*expr).parse::<f64>().unwrap();
     }
     
     pub unsafe fn kf(&mut self, fn_name: &String, passed_args: LinkedList<Box<Ast>>) 

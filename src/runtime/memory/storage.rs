@@ -134,12 +134,6 @@ impl GlkStack {
             let var = &vec_el.1;
             
             match var.vtype {
-                // Type::Class => {
-                //     todo!(); //TODO! class dealloc here
-                // }
-                Type::Stack => {
-                    
-                }
                 _ => ()
             }
         }

@@ -52,6 +52,8 @@ pub mod tokens {
         pub const NOT_EQUALS: TokenType = "не";
         pub const LESS: TokenType = "меньше";
         pub const MORE: TokenType = "більше";
+        pub const AND: TokenType = "іі";
+        pub const OR: TokenType = "або";
 
         //static values
         pub const TRUE: TokenType = "верняк";

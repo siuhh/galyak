@@ -52,6 +52,3 @@ pub enum Ast {
         compound_statement: LinkedList<Box<Ast>>, //Declarations only
     },
 }
-pub fn deref_ast(ast: &Box<Ast>) -> Ast {
-    return *(*ast).clone();
-}

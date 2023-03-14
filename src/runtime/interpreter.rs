@@ -2,7 +2,7 @@ use core::panic;
 use std::{collections::LinkedList, ptr::{null, write}, alloc::{alloc, dealloc}};
 
 use crate::{
-    compiler::ast::{deref_ast, Ast},
+    compiler::ast::Ast,
     program::error_mgr::ErrorCaller, runtime::{memory::var::var_fn},
     program::errors::runtime::*
 };
@@ -70,7 +70,7 @@ impl<'a> Interpreter<'a> {
             let mut res = expr.clone();
             
             while let Ast::Expression { left, op: _, right: _ } = res {
-                res = deref_ast(&left)
+                res = *left
             }
             
             res
@@ -212,17 +212,17 @@ impl<'a> Interpreter<'a> {
         let res = (*self.mem_stack).get_typed(name, &vtype, false);
         let var_ptr = self.unwrap(res);
         
-        if let Ast::Nothing = deref_ast(&value) {
+        if let Ast::Nothing = *value {
             return;
         }
         
         match vtype {
             Type::Number => {
-                let val = self.num(deref_ast(&value));
+                let val = self.num(*value);
                 write(var_ptr as *mut f64, val);
             }
             Type::String =>  {
-                let val = self.string(deref_ast(&value));
+                let val = self.string(*value);
                 write(var_ptr as *mut String, val);
             }
             //TODO! add other types
@@ -236,11 +236,11 @@ impl<'a> Interpreter<'a> {
 
         match vtype {
             Type::Number => {
-                let val = self.num(deref_ast(&value));
+                let val = self.num(*value);
                 write(var_ptr as *mut f64, val);
             }
             Type::String => {
-                let val = self.string(deref_ast(&value));
+                let val = self.string(*value);
                 write(var_ptr as *mut String, val);
             }
             _ => panic!(),
@@ -317,16 +317,18 @@ impl<'a> Interpreter<'a> {
             );
         }
         
-        //move arguments values to call stack
+        //move arguments values to function memory
         for arg in &(*declared_func).args {
             match arg.vtype {
                 Type::Number => {
                     let ptr = self.unwrap((*intpr_mem).get_typed(&arg.name, &arg.vtype, false));
-                    write(ptr as *mut f64, self.num(deref_ast(&args_iter.next().unwrap())));
+                    let val = self.num((**(args_iter.next().unwrap())).clone());
+                    write(ptr as *mut f64,val);
                 }
                 Type::String => {
                     let ptr = self.unwrap((*intpr_mem).get_typed(&arg.name, &arg.vtype, false));
-                    write(ptr as *mut String, self.string(deref_ast(&args_iter.next().unwrap())));
+                    let val = self.string((**(args_iter.next().unwrap())).clone());
+                    write(ptr as *mut String, val);
                 }
                 _ => todo!() //TODO!
             }
@@ -349,12 +351,6 @@ impl<'a> Interpreter<'a> {
         
         return None;
     }
-    
-    unsafe fn ifst(&mut self, expression: Box<Ast>) {
-        // if let Ast::If { condition, compound_statement, else_statement } = expression {
-        //     let ok = self.bool(condition);
-        // }
-    }
 
     unsafe fn retrn(&mut self, expression: Box<Ast>) {
         let ptr = { 
@@ -367,26 +363,28 @@ impl<'a> Interpreter<'a> {
         match self.return_type {
             Type::Number => {
                 self.call_stack.clear();
-                write(ptr as *mut f64, self.num(deref_ast(&expression)));
+                write(ptr as *mut f64, self.num(*expression));
             },
             Type::String => {
                 self.call_stack.clear();
-                write(ptr as *mut String, self.string(deref_ast(&expression)));
+                write(ptr as *mut String, self.string(*expression));
             },
             _ => todo!(),
         }
     }
 
     pub unsafe fn end(&mut self) {
-        (*self.mem_stack).nahuy();
+        if !self.mem_stack.is_null() {
+            (*self.mem_stack).nahuy();
+        }
     }
 
     pub unsafe fn run(&mut self) {
         for cs in self.call_stack.clone() {
-            let ast = deref_ast(&cs);
+            let ast = *cs;
             
             if let Ast::Statement { line, statement } = ast {
-                let stat = deref_ast(&statement);
+                let stat = *statement;
                 
                 self.curr_line = line;
                 
