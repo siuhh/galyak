@@ -1,6 +1,6 @@
 use std::{
     alloc::{alloc, dealloc, Layout},
-    collections::LinkedList, fs, process::exit,
+    collections::LinkedList, fs, process::exit, ptr::null,
 };
 use std::time::{Instant};
 
@@ -9,7 +9,7 @@ use compiler::parser::Parser;
 
 use crate::{
     compiler,
-    runtime::{func::GlkFuncDeclaration, interpreter::Interpreter, memory::types::Type},
+    runtime::{func::GlkFuncDeclaration, interpreter::Interpreter, memory::{types::Type, storage::GlkStack}},
 };
 
 use super::error_mgr::ErrorCaller;
@@ -56,12 +56,10 @@ impl Prog {
         let asts = p.parse();
         
         unsafe {
-            
             let mainfptr = alloc(Layout::new::<GlkFuncDeclaration>()) as *mut GlkFuncDeclaration;
             let mainfd = GlkFuncDeclaration::new(asts, LinkedList::new(), Type::Null, "main".to_string());
             std::ptr::write(mainfptr, mainfd);
-
-            let mut interpreter = Interpreter::new(mainfptr, &c);
+            let mut interpreter = Interpreter::new(mainfptr, &c, null::<GlkStack>() as *mut GlkStack);
         
             if show_time {
                 println!("{}", format!(

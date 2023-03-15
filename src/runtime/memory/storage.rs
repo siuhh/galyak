@@ -4,15 +4,15 @@ use std::alloc::{self, dealloc};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{LinkedList};
 use std::hash::{Hash, Hasher};
-use std::ptr::write;
+use std::ptr::{write, null_mut};
 
 use crate::program::errors::runtime::*;
 use super::types::{self, Type, STACK_LAYOUT};
-
+#[derive(Debug)]
 pub struct StackHashMap {
     pub vec: Vec<(u64, StackVariable)>,
 }
-
+#[derive(Debug)]
 pub struct StackVariable {
     pub offset: usize,
     pub vtype: Type,
@@ -51,6 +51,9 @@ impl StackHashMap {
     }
     
     pub fn get(&mut self, key: &String) -> Option<&mut StackVariable> {
+        if self.vec.len() == 0 {
+            return None;
+        }
         let target = StackHashMap::hash(key.clone());
         
         let mut left: i32 = 0;
@@ -85,10 +88,11 @@ pub struct GlkStack {
     pub offsets: StackHashMap,
     pub self_ptr: *mut u8,
     pub align: usize,
+    pub parent: *mut GlkStack,
 }
 
 impl GlkStack {
-    pub unsafe fn alloc(reserve: &LinkedList<VarInfo>) -> *mut GlkStack {
+    pub unsafe fn alloc(reserve: &LinkedList<VarInfo>, parent: *mut GlkStack) -> *mut GlkStack {
         let mut size: usize = 0;
         
         let mut align = 0;
@@ -112,8 +116,12 @@ impl GlkStack {
         
         //TODO! зробити шось з вирівнюванням
         let align = 8;
-        
-        let fields_ptr = alloc::alloc(Layout::from_size_align(size, align).unwrap());
+        let fields_ptr = if size > 0 {
+            alloc::alloc(Layout::from_size_align(size, align).unwrap())
+        }
+        else {
+            null_mut()
+        };
         let stack_ptr = alloc::alloc(Layout::new::<GlkStack>()) as *mut GlkStack;
         
         let stack = GlkStack {
@@ -122,6 +130,7 @@ impl GlkStack {
             size,
             self_ptr: stack_ptr as *mut u8,
             offsets,
+            parent,
         };
         
         write(stack_ptr, stack);
@@ -161,6 +170,9 @@ impl GlkStack {
                 return Ok(self.start.add(val.offset));
             },
             None => {
+                if !self.parent.is_null() {
+                    return (*self.parent).get_typed(name, expected_type, expected_init_status);
+                }
                 return Err(var_not_found(name));
             },
         }
@@ -184,6 +196,10 @@ impl GlkStack {
                 return Ok((self.start.add(val.offset), val.vtype));
             },
             None => {
+                println!("nf");
+                if !self.parent.is_null() {
+                    return (*self.parent).get_dynamicaly(name, expected_init_status);
+                }
                 return Err(var_not_found(name));
             },
         }

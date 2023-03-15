@@ -1,8 +1,8 @@
 use core::panic;
-use std::{collections::LinkedList, ptr::{null, write}, alloc::{alloc, dealloc}};
+use std::{collections::LinkedList, ptr::{null, write}, alloc::{alloc, dealloc, Layout}};
 
 use crate::{
-    compiler::ast::Ast,
+    compiler::{ast::Ast, token::{tokens::stat::{EQUALS, MORE, LESS, NOT_EQUALS}, TokenType}},
     program::error_mgr::ErrorCaller, runtime::{memory::var::var_fn},
     program::errors::runtime::*
 };
@@ -11,7 +11,7 @@ use super::{
     func::GlkFuncDeclaration,
     memory::{
         storage::{GlkStack, VarInfo},
-        types::{get_type, Type, FLOAT_LAYOUT, STRING_LAYOUT, get_layout}, var::{var_num, var_str}
+        types::{get_type, Type, get_layout}, var::{var_num, var_str}
     },
 };
 
@@ -29,14 +29,8 @@ unsafe fn is_null(ptr: *mut u8) -> bool {
 }
 
 impl<'a> Interpreter<'a> {
-    pub unsafe fn new(func: *mut GlkFuncDeclaration, error_caller: &'a ErrorCaller) -> Self {
-        let mem_stack = 
-            if (*func).stack_reservation.len() != 0 {
-                GlkStack::alloc(&(*func).stack_reservation)
-            }
-            else {
-                null::<GlkStack>() as *mut GlkStack
-            };
+    pub unsafe fn new(func: *mut GlkFuncDeclaration, error_caller: &'a ErrorCaller, parent: *mut GlkStack) -> Self {
+        let mem_stack = GlkStack::alloc(&(*func).stack_reservation, parent);
             
         
         return Interpreter {
@@ -65,7 +59,16 @@ impl<'a> Interpreter<'a> {
         }
     }
     
-    pub unsafe fn auto(&mut self, expr: Ast) -> (*mut u8, Type) {  
+    
+    unsafe fn write_in_heap<T>(&mut self, value: T) -> *mut u8 {
+        
+        let ptr = alloc(Layout::new::<T>()) as *mut T;
+        write(ptr, value);
+        
+        return ptr as *mut u8;
+    }
+    
+    unsafe fn auto_string_or_num(&mut self, expr: Ast) -> (*mut u8, Type) {
         let left = {
             let mut res = expr.clone();
             
@@ -76,23 +79,66 @@ impl<'a> Interpreter<'a> {
             res
         };
         
-        match left {
-            Ast::Num(_) => {
-                let value = self.num(expr);
-                let value_ptr = alloc(FLOAT_LAYOUT) as *mut f64;
-                
-                write(value_ptr, value);
-                
-                return (value_ptr as *mut u8, Type::Number);
+        let vtype = match left {
+            Ast::Num(_) => Type::Number,
+            Ast::String(_) => Type::String,
+            Ast::Keyword(name) => {
+                let var = {
+                    let res = (*self.mem_stack).get_dynamicaly(&name, true);
+                    self.unwrap(res)
+                };
+                var.1
             }
-            Ast::String(_) => {
-                let value = self.string(expr);
-                let value_ptr = alloc(STRING_LAYOUT) as *mut String;
-                
-                write(value_ptr, value);
-                
-                return (value_ptr as *mut u8, Type::String);
+            Ast::CallFunc { name, args: _ } => {
+                let declared_func = self.unwrap(var_fn(self.mem_stack, &name));
+                (*declared_func).return_type
             }
+            _ => {
+                println!("not implemented for type:");
+                dbg!(expr);
+                panic!();
+            }
+        };
+        match vtype {
+            Type::Number => {
+                let val = self.num(expr);
+                (self.write_in_heap(val), Type::Number)
+            },
+            Type::String => {
+                let val = self.string(expr);
+                (self.write_in_heap(val), Type::String)
+            },
+            _ => panic!()
+        }
+    }
+    
+    
+    pub unsafe fn auto(&mut self, expr: Ast) -> (*mut u8, Type) {
+        match &expr {
+            Ast::Expression { left: _, op, right: _ } => {
+                return match op.value.as_str() {
+                    "+" => self.auto_string_or_num(expr),
+                    "-" | "*" | "/" => {
+                        let val = self.num(expr);
+                        (self.write_in_heap(val), Type::Number)
+                    },
+                    //EQUALS => (self.write_in_heap(self.bool(expr)), Type::Bool),
+                    //NOT_EQUALS => (self.write_in_heap(self.bool(expr)), Type::Bool),
+                    //MORE => (self.write_in_heap(self.bool(expr)), Type::Bool),
+                    //LESS => (self.write_in_heap(self.bool(expr)), Type::Bool),
+                    _ => {
+                        println!("not implemented for type:");
+                        dbg!(expr);
+                        panic!();
+                    }
+                }
+            },
+            Ast::Num(num) => {
+                return (self.write_in_heap(*num), Type::Number);
+            },
+            Ast::String(str) => {
+                return (self.write_in_heap(str.clone()), Type::String);
+            },
             Ast::Keyword(name) => {
                 let var = {
                     let res = (*self.mem_stack).get_dynamicaly(&name, true);
@@ -100,46 +146,34 @@ impl<'a> Interpreter<'a> {
                 };
                 
                 match var.1 {
-                    Type::String => {
-                        let value = self.string(expr);
-                        let value_ptr = alloc(STRING_LAYOUT) as *mut String;
-                        
-                        write(value_ptr, value);
-                        
-                        return (value_ptr as *mut u8, Type::String);
-                    },
                     Type::Number => {
-                        let value = self.num(expr);
-                        let value_ptr = alloc(FLOAT_LAYOUT) as *mut f64;
-                        
-                        write(value_ptr, value);
-                        
-                        return (value_ptr as *mut u8, Type::Number);
-                    }
-                    _ => todo!(),
+                        let val = self.num(expr);
+                        (self.write_in_heap(val), Type::Number)
+                    },
+                    Type::String => {
+                        let val = self.string(expr);
+                        (self.write_in_heap(val), Type::String)
+                    },
+                    _ => panic!()
                 }
-            }
+            },
             Ast::CallFunc { name, args } => {
+                if let Some((pointer, vtype)) = self.kf(&name, args.clone()) {
+                    return (pointer, vtype);
+                }  
+                
                 let declared_func = self.unwrap(var_fn(self.mem_stack, &name));
                 
                 match (*declared_func).return_type {
-                    Type::String => {
-                        let val = self.call_func::<String>(name, args, Type::String).unwrap();
-                        let value_ptr = alloc(STRING_LAYOUT) as *mut String;
-                        
-                        write(value_ptr, val);
-                        
-                        return (value_ptr as *mut u8, Type::String);
-                    },
                     Type::Number => {
-                        let val = self.call_func::<f64>(name, args, Type::Number).unwrap();
-                        let value_ptr = alloc(FLOAT_LAYOUT) as *mut f64;
-                        
-                        write(value_ptr, val);
-                        
-                        return (value_ptr as *mut u8, Type::Number);
-                    }
-                    _ => todo!(),
+                        let val = self.call_func::<f64>((*name).clone(), (*args).clone(), Type::Number).unwrap();
+                        (self.write_in_heap(val), Type::Number)
+                    },
+                    Type::String => {
+                        let val = self.call_func::<String>((*name).clone(), (*args).clone(), Type::String).unwrap();
+                        (self.write_in_heap(val), Type::String)
+                    },
+                    _ => panic!()
                 }
             }
             _ => {
@@ -150,7 +184,66 @@ impl<'a> Interpreter<'a> {
         }
     }
     
-
+    pub unsafe fn bool(&mut self, expr: Ast) -> bool {
+        if let Ast::Expression { left, op, right } = &expr {
+            let left_au = self.auto((**left).clone());
+            let right_au = self.auto((**right).clone());
+            
+            if left_au.1 != right_au.1 {
+                dealloc(left_au.0, get_layout(&left_au.1));
+                dealloc(right_au.0, get_layout(&right_au.1));
+                
+                return false;
+            }
+            
+            let comparsion_result: TokenType;
+            
+            match left_au.1 {
+                Type::String => {
+                    let val_left = (*(left_au.0 as *mut String)).clone();
+                    let val_right = (*(right_au.0 as *mut String)).clone();
+                    
+                    if val_left == val_right {
+                        comparsion_result = EQUALS;
+                    }
+                    else if val_left > val_right {
+                        comparsion_result = MORE;
+                    }
+                    else if val_left < val_right {
+                        comparsion_result = LESS;
+                    }
+                    else {
+                        comparsion_result = NOT_EQUALS;
+                    }
+                }
+                Type::Number => {
+                    let val_left = *(left_au.0 as *mut f64);
+                    let val_right = *(right_au.0 as *mut f64);
+                    
+                    if val_left == val_right {
+                        comparsion_result = EQUALS;
+                    }
+                    else if val_left > val_right {
+                        comparsion_result = MORE;
+                    }
+                    else if val_left < val_right {
+                        comparsion_result = LESS;
+                    }
+                    else {
+                        comparsion_result = NOT_EQUALS;
+                    }
+                }
+                _ => panic!()
+            }
+            
+            dealloc(left_au.0, get_layout(&left_au.1));
+            dealloc(right_au.0, get_layout(&right_au.1));
+            
+            return op.value == comparsion_result;
+        }
+        panic!();
+    }
+    
     pub unsafe fn num(&mut self, bin: Ast) -> f64 {
         match bin {
             Ast::Num(value) => value,
@@ -304,7 +397,7 @@ impl<'a> Interpreter<'a> {
         
         let mut args_iter = passed_args.iter();
         
-        let mut func_interpreter = Interpreter::new(declared_func, self.error_caller);
+        let mut func_interpreter = Interpreter::new(declared_func, self.error_caller, self.mem_stack);
         let intpr_mem = func_interpreter.mem_stack;
         
         if passed_args.len() != (*declared_func).args.len() {
@@ -372,6 +465,42 @@ impl<'a> Interpreter<'a> {
             _ => todo!(),
         }
     }
+    
+    unsafe fn ifst(
+        &mut self,
+        condition: Box<Ast>, 
+        compound_statement: LinkedList<Box<Ast>>, 
+        else_statement: Option<LinkedList<Box<Ast>>>
+    ) {
+        let ok = self.bool(*condition);
+        
+        let mut anon_func: GlkFuncDeclaration;
+        if ok {
+            anon_func = GlkFuncDeclaration::new(
+                compound_statement, 
+                LinkedList::new(), 
+                Type::Null, 
+                "~anonif~".to_string()
+            );
+        }
+        else {
+            if let Some(stat) = else_statement {
+                anon_func = GlkFuncDeclaration::new(
+                    stat, 
+                    LinkedList::new(), 
+                    Type::Null, 
+                    "~if~".to_string()
+                );
+            }
+            else {
+                return;
+            }
+        }
+        let mut if_interpreter = Interpreter::new(&mut anon_func, self.error_caller, self.mem_stack);
+        
+        if_interpreter.run();
+        if_interpreter.end();
+    }
 
     pub unsafe fn end(&mut self) {
         if !self.mem_stack.is_null() {
@@ -403,6 +532,9 @@ impl<'a> Interpreter<'a> {
                     }
                     Ast::SetVariable { name, value } => {
                         self.set_variable(&name, value);
+                    }
+                    Ast::If { condition, compound_statement, else_statement } => {
+                        self.ifst(condition, compound_statement, else_statement)
                     }
                     _ => panic!(),
                 }  

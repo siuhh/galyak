@@ -7,9 +7,8 @@ use super::{memory::{storage::{VarInfo}, types::{get_type, Type}}, interpreter::
 unsafe fn init_stack_res(call_stack: &LinkedList<Box<Ast>>) -> LinkedList<VarInfo> {
     let mut reserve = LinkedList::<VarInfo>::new();
     
-    for cs in call_stack {        
+    for cs in call_stack {
         if let Ast::Statement { line: _, statement } = &**cs {
-            
             match &**statement {
                 Ast::DeclareVariable { array: _, name, vtype, value: _ } => {
                     reserve.push_back(VarInfo { vtype: get_type(&vtype), name: name.clone() })

@@ -70,10 +70,6 @@ impl<'a> Parser<'a> {
             self.eat(EOL);
             return true;
         }
-        if self.current_token.name == EOF {
-            self.eat(EOF);
-            return true;
-        }
         return false;
     }
 
@@ -106,7 +102,7 @@ impl<'a> Parser<'a> {
         self.error_caller.comp_error(unexpected_token(&self.current_token), &self.current_token);
         panic!();
     }
-    //term   : factor ((MUL | DIV | EQUALS | LESS | MORE) factor)*
+    //term   : factor ((MUL | DIV) factor)*
     fn st_term(&mut self) -> Ast {
         let mut node = self.st_factor();
 
@@ -114,15 +110,6 @@ impl<'a> Parser<'a> {
             let token = self.current_token.clone();
             if token.value == "*" || token.value == "/" {
                 self.eat(ARIPH_OP);
-            }
-            else if token.name == EQUALS {
-                self.eat(EQUALS);
-            }
-            else if token.name == MORE {
-                self.eat(MORE);
-            }
-            else if token.name == LESS {
-                self.eat(LESS);
             }
             else {
                 break;
@@ -139,11 +126,24 @@ impl<'a> Parser<'a> {
     //expr   : term ((PLUS | MINUS) term)*
     fn st_expr(&mut self) -> Ast {
         let mut node = self.st_term();
-        while self.current_token.name == ARIPH_OP {
+        loop {
             let token = self.current_token.clone();
             if token.value == "+" || token.value == "-" {
                 self.eat(ARIPH_OP);
-            } else {
+            } 
+            else if token.name == EQUALS {
+                self.eat(EQUALS);
+            }
+            else if token.name == NOT_EQUALS {
+                self.eat(NOT_EQUALS);
+            }
+            else if token.name == MORE {
+                self.eat(MORE);
+            }
+            else if token.name == LESS {
+                self.eat(LESS);
+            }
+            else {
                 break;
             }
             node = Ast::Expression {
@@ -307,7 +307,7 @@ impl<'a> Parser<'a> {
         
         //skip empty
         
-        while self.break_line(){ }
+        while self.break_line() { }
         
         let else_statement = 
             if self.current_token.name == ELSE {
@@ -351,7 +351,7 @@ impl<'a> Parser<'a> {
             IF => {
                 let ifst = self.st_if();
                 self.break_line();
-                dbg!(&ifst);
+                
                 return ifst;
             },
             EOL => { //skip empty line
