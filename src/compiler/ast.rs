@@ -45,6 +45,12 @@ pub enum Ast {
         compound_statement: LinkedList<Box<Ast>>, //Statements
         else_statement: Option<LinkedList<Box<Ast>>>,
     },
+    While {
+        condition: Box<Ast>,//Expression
+        compound_statement: LinkedList<Box<Ast>>, //Statements
+    },
+    Break,
+    Continue,
     Class {
         name: String,
         args: LinkedList<(String, String)>,

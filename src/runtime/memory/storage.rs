@@ -196,7 +196,6 @@ impl GlkStack {
                 return Ok((self.start.add(val.offset), val.vtype));
             },
             None => {
-                println!("nf");
                 if !self.parent.is_null() {
                     return (*self.parent).get_dynamicaly(name, expected_init_status);
                 }

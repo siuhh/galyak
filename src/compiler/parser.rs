@@ -1,5 +1,5 @@
 use core::panic;
-use std::collections::LinkedList;
+use std::{collections::LinkedList};
 
 use crate::{
     compiler::{
@@ -323,6 +323,17 @@ impl<'a> Parser<'a> {
         
         return Ast::If { condition: Box::new(condtition), compound_statement, else_statement }
     }
+    
+    pub fn st_while(&mut self) -> Ast {
+        self.eat(WHILE);
+        let condtition = self.st_expr();
+        
+        self.eat(COMPOUND_START);
+        let compound_statement = self.statement_list();
+        self.eat(COMPOUND_END);
+        
+        return Ast::While { condition: Box::new(condtition), compound_statement }
+    }
     //statement : (dec_var | dec_func | call_func | dec_class | set_var | retrn)
     pub fn statement(&mut self) -> Ast {
         return match self.current_token.name {
@@ -353,6 +364,12 @@ impl<'a> Parser<'a> {
                 self.break_line();
                 
                 return ifst;
+            },
+            WHILE => {
+                let st_while = self.st_while();
+                self.break_line();
+                
+                return st_while;
             },
             EOL => { //skip empty line
                 self.break_line();

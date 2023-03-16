@@ -27,6 +27,9 @@ pub struct Interpreter<'a> {
 unsafe fn is_null(ptr: *mut u8) -> bool {
     return ptr == null::<u8>() as *mut u8;
 }
+pub enum InterpreterResult {
+    Returned, End, Break, Continue
+}
 
 impl<'a> Interpreter<'a> {
     pub unsafe fn new(func: *mut GlkFuncDeclaration, error_caller: &'a ErrorCaller, parent: *mut GlkStack) -> Self {
@@ -238,6 +241,10 @@ impl<'a> Interpreter<'a> {
             
             dealloc(left_au.0, get_layout(&left_au.1));
             dealloc(right_au.0, get_layout(&right_au.1));
+            
+            if op.value == NOT_EQUALS && comparsion_result != EQUALS {
+                return true;
+            }
             
             return op.value == comparsion_result;
         }
@@ -501,6 +508,37 @@ impl<'a> Interpreter<'a> {
         if_interpreter.run();
         if_interpreter.end();
     }
+    
+    
+    unsafe fn whilest(
+        &mut self,
+        condition: Box<Ast>, 
+        compound_statement: LinkedList<Box<Ast>>
+    ) {
+        let mut anon_func = GlkFuncDeclaration::new(
+            compound_statement, 
+            LinkedList::new(), 
+            Type::Null, 
+            "~while~".to_string()
+        );
+        
+        let mut if_interpreter = Interpreter::new(&mut anon_func, self.error_caller, self.mem_stack);
+        
+        loop {
+            let ok = self.bool((*condition).clone());
+            
+            if !ok {
+                break;
+            }
+            
+            let res = if_interpreter.run();
+            if let InterpreterResult::Break = res {
+                break;
+            }
+        }
+        
+        if_interpreter.end();
+    }
 
     pub unsafe fn end(&mut self) {
         if !self.mem_stack.is_null() {
@@ -508,7 +546,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub unsafe fn run(&mut self) {
+    pub unsafe fn run(&mut self) -> InterpreterResult {
         for cs in self.call_stack.clone() {
             let ast = *cs;
             
@@ -523,6 +561,7 @@ impl<'a> Interpreter<'a> {
                     }
                     Ast::Return { expression } => {
                         self.retrn(expression);
+                        return InterpreterResult::Returned;
                     }
                     Ast::Function { name, args, return_type, compound_statement } => {
                         self.declare_function(name, args, return_type, compound_statement);
@@ -536,9 +575,19 @@ impl<'a> Interpreter<'a> {
                     Ast::If { condition, compound_statement, else_statement } => {
                         self.ifst(condition, compound_statement, else_statement)
                     }
+                    Ast::While { condition, compound_statement } => {
+                        self.whilest(condition, compound_statement);
+                    }
+                    Ast::Break => {
+                        return InterpreterResult::Break;
+                    }
+                    Ast::Continue => {
+                        return InterpreterResult::Continue;
+                    }
                     _ => panic!(),
                 }  
             }
         }
+        return InterpreterResult::End;
     }
 }
