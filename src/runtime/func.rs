@@ -1,6 +1,7 @@
 use std::{collections::LinkedList, io::{stdout, Write}};
 
 use colored::Colorize;
+use rand::Rng;
 
 use crate::{compiler::ast::{Ast}};
 
@@ -100,8 +101,11 @@ impl<'a> Interpreter<'a> {
         
         return line.replace("\r\n", "").replace("\n", "");
     }
+    unsafe fn kf_balda(&mut self) -> f64 {
+        return rand::prelude::thread_rng().gen::<f64>();
+    }
     
-    unsafe fn as_num(&mut self, expr: Box<Ast>) -> f64 {
+    unsafe fn kf_as_num(&mut self, expr: Box<Ast>) -> f64 {
         return self.string(*expr).parse::<f64>().unwrap();
     }
     //виконує функції прописані вище, якшо така функція не прописана вертає нулл
@@ -126,7 +130,11 @@ impl<'a> Interpreter<'a> {
                 return Some(TempValue::String(val));
             },
             "тіпацифри" => {
-                let val = self.as_num(passed_args.into_iter().next().unwrap());
+                let val = self.kf_as_num(passed_args.into_iter().next().unwrap());
+                return Some(TempValue::Number(val));
+            },
+            "балда" => {
+                let val = self.kf_balda();
                 return Some(TempValue::Number(val));
             },
             _ => return None

@@ -489,6 +489,10 @@ impl<'a> Interpreter<'a> {
             }
             
             let res = if_interpreter.run();
+            if !if_interpreter.mem_stack.is_null() { 
+                (*if_interpreter.mem_stack).uninit_all();
+            }
+            
             if let InterpreterResult::Break = res {
                 break;
             }

@@ -183,7 +183,8 @@ impl GlkStack {
         }
     }
     
-    pub unsafe fn get_dynamicaly(&mut self, name: &String, expected_init_status: bool) -> Result<(*mut u8, Type), String> {
+    pub unsafe fn get_dynamicaly(&mut self, name: &String, expected_init_status: bool) 
+    -> Result<(*mut u8, Type), String> {
         let var = self.offsets.get(name);
         
         match var {
@@ -206,8 +207,12 @@ impl GlkStack {
                 }
                 return Err(var_not_found(name));
             },
-        }
-        
+        }   
     }
     
+    pub unsafe fn uninit_all(&mut self) {
+        for mut e in &mut self.offsets.vec {
+            e.1.initialized = false;
+        }
+    }
 }
