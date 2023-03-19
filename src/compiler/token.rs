@@ -81,6 +81,7 @@ pub const STATIC_TOKENS: &[TokenType] = &[
     PUBLIC,
     ARRAY,
     IF,
+    OTHER_IF,
     ELSE,
     WHILE,
     VAR,

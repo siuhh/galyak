@@ -316,7 +316,6 @@ impl<'a> Parser<'a> {
         //skip empty
         
         while self.break_line() { }
-        
         let else_statement = 
             if self.current_token.name == ELSE {
                 self.eat(ELSE);
@@ -324,6 +323,13 @@ impl<'a> Parser<'a> {
                 let stat = self.statement_list();
                 self.eat(COMPOUND_END);
                 Some(stat)
+            }
+            else if self.current_token.name == OTHER_IF {
+                let line = self.current_token.line;
+                self.eat(OTHER_IF);
+                let mut st = LinkedList::new();
+                st.push_back(Box::new(Ast::Statement { line, statement: Box::new(self.st_if()) } ));
+                Some(st)
             }
             else {
                 None
