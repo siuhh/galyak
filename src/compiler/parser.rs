@@ -73,7 +73,7 @@ impl<'a> Parser<'a> {
         return false;
     }
 
-    //factor : INTEGER | STRING | VAR | CALL_FUNC | LEFT_PARENTHESIS expr RIGHT_PARENTHESIS
+    //factor : INTEGER | STRING | VAR | BOOL | CALL_FUNC | LEFT_PARENTHESIS expr RIGHT_PARENTHESIS
     fn st_factor(&mut self) -> Ast {
         let token = self.current_token.clone();
 
@@ -92,6 +92,14 @@ impl<'a> Parser<'a> {
                 LPAR => self.st_call_func(),
                 _ => Ast::Keyword(self.eat(NAME).value)
             };
+        } 
+        else if token.name == TRUE {
+            self.eat(TRUE);
+            return Ast::Bool(true);
+        } 
+        else if token.name == FALSE {
+            self.eat(FALSE);
+            return Ast::Bool(false);
         } 
         else if token.name == LPAR {
             self.eat(LPAR);
@@ -371,6 +379,16 @@ impl<'a> Parser<'a> {
                 
                 return st_while;
             },
+            BREAK => { 
+                self.eat(BREAK);
+                self.break_line();
+                return Ast::Break;
+            },
+            CONTINUE => {
+                self.eat(CONTINUE);
+                self.break_line();
+                return Ast::Continue;
+            }
             EOL => { //skip empty line
                 self.break_line();
                 return Ast::Nothing;

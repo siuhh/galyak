@@ -1,6 +1,6 @@
 use std::alloc::Layout;
 
-use crate::runtime::func::GlkFuncDeclaration;
+use crate::runtime::{func::GlkFuncDeclaration, interpreter::TempValue};
 
 use super::{list::GlkList, storage::GlkStack};
 
@@ -67,5 +67,13 @@ pub fn get_type_name(t: &Type) -> String {
         Type::List => todo!(),
         Type::String => T_STRING.to_string(),
         Type::Class => todo!(),
+    };
+}
+pub fn get_value_type(value: &TempValue) -> Type {
+    return match value {
+        TempValue::String(_) => Type::String,
+        TempValue::Number(_) => Type::Number,
+        TempValue::Boolean(_) => Type::Bool,
+        TempValue::Null => Type::Null,
     };
 }

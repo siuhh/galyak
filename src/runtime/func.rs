@@ -1,8 +1,10 @@
-use std::{collections::LinkedList, alloc::{dealloc, alloc}, ptr::{null_mut, write}, io::{stdout, Write}};
+use std::{collections::LinkedList, io::{stdout, Write}};
 
-use crate::{compiler::ast::{Ast}, runtime::memory::types::{FLOAT_LAYOUT, STRING_LAYOUT}};
+use colored::Colorize;
 
-use super::{memory::{storage::{VarInfo}, types::{get_type, Type}}, interpreter::{Interpreter}};
+use crate::{compiler::ast::{Ast}};
+
+use super::{memory::{storage::{VarInfo}, types::{get_type, Type}}, interpreter::{Interpreter, TempValue}};
 
 unsafe fn init_stack_res(call_stack: &LinkedList<Box<Ast>>) -> LinkedList<VarInfo> {
     let mut reserve = LinkedList::<VarInfo>::new();
@@ -58,22 +60,37 @@ impl GlkFuncDeclaration {
 
 impl<'a> Interpreter<'a> {
     unsafe fn kf_print(&mut self, passed_args: LinkedList<Box<Ast>>) {
+        let mut color: char = 'б';
         for arg in passed_args {
             let expr = *arg;
             
-            let (val_ptr, vtype) = self.auto(expr);
+            let value = self.auto(expr);
             
-            match vtype {
-                Type::Number => {
-                    print!("{} ", *(val_ptr as *mut f64));
-                    dealloc(val_ptr, FLOAT_LAYOUT);
+            let mut prnt: String = String::new(); 
+            
+            match value {
+                TempValue::Number(num) => {
+                    prnt = num.to_string();
                 },
-                Type::String => {
-                    print!("{} ", *(val_ptr as *mut String));
-                    dealloc(val_ptr, STRING_LAYOUT);
+                TempValue::String(str) => {
+                    if str.starts_with(":?") {
+                        color = str.chars().nth(2).unwrap();
+                    }
+                    else {
+                        prnt = str;
+                    }
                 },
                 _ => todo!()
             };
+            
+            match color {
+                'б' => print!("{}", prnt),
+                'ч' => print!("{}", prnt.red()),
+                'з' => print!("{}", prnt.green()),
+                'ж' => print!("{}", prnt.yellow()),
+                'с' => print!("{}", prnt.blue()),
+                _ => todo!()
+            }
         }
     }
     
@@ -93,17 +110,17 @@ impl<'a> Interpreter<'a> {
     unsafe fn as_num(&mut self, expr: Box<Ast>) -> f64 {
         return self.string(*expr).parse::<f64>().unwrap();
     }
-    
+    //виконує функції прописані вище, якшо така функція не прописана вертає нулл
     pub unsafe fn kf(&mut self, fn_name: &String, passed_args: LinkedList<Box<Ast>>) 
-    -> Option<(*mut u8, Type)> {
+    -> Option<TempValue> {
         match fn_name.as_str() {
             "базар" => {
                 self.kf_print(passed_args);
-                return Some((null_mut(), Type::Null));
+                return Some(TempValue::Null);
             },
             "базарлн" => {
                 self.kf_println(passed_args);
-                return Some((null_mut(), Type::Null));
+                return Some(TempValue::Null);
             },
             "шоти" => {
                 self.kf_print(passed_args);
@@ -112,15 +129,11 @@ impl<'a> Interpreter<'a> {
                 
                 let val = self.kf_input();
                 
-                let ptr = alloc(STRING_LAYOUT) as *mut String;
-                write(ptr, val);
-                return Some((ptr as *mut u8, Type::String));
+                return Some(TempValue::String(val));
             },
             "тіпацифри" => {
                 let val = self.as_num(passed_args.into_iter().next().unwrap());
-                let ptr = alloc(FLOAT_LAYOUT) as *mut f64;
-                write(ptr, val);
-                return Some((ptr as *mut u8, Type::Number));
+                return Some(TempValue::Number(val));
             },
             _ => return None
         }

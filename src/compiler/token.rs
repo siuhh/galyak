@@ -27,11 +27,12 @@ pub mod tokens {
 
         pub const COMA: TokenType = ",";
 
-        //declatarions
         pub const FUNC: TokenType = "тєма";
         pub const RET_RYPE: TokenType = "нарішає";
         pub const RETURN: TokenType = "рішани";
         pub const CLASS: TokenType = "масть";
+        pub const BREAK: TokenType = "гуляй";
+        pub const CONTINUE: TokenType = "далі";
         pub const CONSTRUCTOR: TokenType = "вилупився";
         pub const PRIVATE: TokenType = "тіхарь";
         pub const PUBLIC: TokenType = "кент";
@@ -44,6 +45,7 @@ pub mod tokens {
 
         //Statements
         pub const IF: TokenType = "варік";
+        pub const OTHER_IF: TokenType = "інший";
         pub const ELSE: TokenType = "найоб";
         pub const WHILE: TokenType = "поки";
 
@@ -72,6 +74,8 @@ pub const STATIC_TOKENS: &[TokenType] = &[
     FUNC,
     RET_RYPE,
     RETURN,
+    BREAK,
+    CONTINUE,
     CLASS,
     PRIVATE,
     PUBLIC,

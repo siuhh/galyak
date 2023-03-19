@@ -150,7 +150,12 @@ impl GlkStack {
         dealloc(self.self_ptr, STACK_LAYOUT);
     }
     
-    pub unsafe fn get_typed(&mut self, name: &String, expected_type: &Type, expected_init_status: bool) -> Result<*mut u8, String> {
+    pub unsafe fn get_typed(
+        &mut self, 
+        name: &String, 
+        expected_type: &Type, 
+        expected_init_status: bool
+    ) -> Result<*mut u8, String> {
         let var = self.offsets.get(name);
         
         match var {

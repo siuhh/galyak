@@ -8,6 +8,7 @@ pub enum Ast {
     Num(f64),
     Keyword(String),
     String(String),
+    Bool(bool),
     Expression {
         left: Box<Ast>,  //NUMBER | VAR | ARIPH_EXPRESSION | STRING
         op: Token,       //+ - / *
