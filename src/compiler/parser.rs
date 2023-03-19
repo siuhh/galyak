@@ -110,13 +110,13 @@ impl<'a> Parser<'a> {
         self.error_caller.comp_error(unexpected_token(&self.current_token), &self.current_token);
         panic!();
     }
-    //term   : factor ((MUL | DIV) factor)*
+    //term   : factor ((MUL | DIV | %) factor)*
     fn st_term(&mut self) -> Ast {
         let mut node = self.st_factor();
 
         loop {
             let token = self.current_token.clone();
-            if token.value == "*" || token.value == "/" {
+            if token.value == "*" || token.value == "/" || token.value == "%" {
                 self.eat(ARIPH_OP);
             }
             else {

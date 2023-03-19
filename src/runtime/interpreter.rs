@@ -29,9 +29,9 @@ unsafe fn is_null(ptr: *mut u8) -> bool {
 }
 #[derive(Debug)]
 pub enum InterpreterResult {
-    Returned, End, Break, Continue
+    Returned(TempValue), End, Break, Continue
 }
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum TempValue {
     String(String),
     Number(f64),
@@ -124,7 +124,7 @@ impl<'a> Interpreter<'a> {
             Ast::Expression { left: _, op, right: _ } => {
                 return match op.value.as_str() {
                     "+" => self.auto_string_or_num(expr),
-                    "-" | "*" | "/" => {
+                    "-" | "*" | "/" | "%" => {
                         let val = self.num(expr);
                         return TempValue::Number(val);
                     },
@@ -227,6 +227,7 @@ impl<'a> Interpreter<'a> {
                 "-" => self.num(*left) - self.num(*right),
                 "*" => self.num(*left) * self.num(*right),
                 "/" => self.num(*left) / self.num(*right),
+                "%" => self.num(*left) % self.num(*right),
                 _ => panic!(),
             },
             Ast::Keyword(value) => self.unwrap(var_num(self.mem_stack, &value)),
@@ -413,50 +414,18 @@ impl<'a> Interpreter<'a> {
             }
         }
         
-        func_interpreter.run();
-        
-        if expected_return != Type::Null {
-            let val = { 
-                let res = (*func_interpreter.mem_stack).get_typed(&"#".to_string(), &expected_return, true);
-                match expected_return {
-                    Type::Number => TempValue::Number(*(self.unwrap(res) as *mut f64)),
-                    Type::Char => TempValue::Number(*(self.unwrap(res) as *mut f64)),//TODO!
-                    Type::Bool => TempValue::Boolean(*(self.unwrap(res) as *mut bool)),
-                    Type::String => TempValue::String((*(self.unwrap(res) as *mut String)).clone()),
-                    _ => panic!()
-                }
-                
-            };
-            
-            func_interpreter.end();
-        
-            return Some(val);   
-        }
-        
+        let result = func_interpreter.run();
         func_interpreter.end();
         
-        return None;
-    }
-
-    unsafe fn retrn(&mut self, expression: Box<Ast>) {
-        let ptr = { 
-            let res = (*self.mem_stack).get_typed(&"#".to_string(), &self.return_type, false);
-            if let Err(_) = res {
-                self.end_with_error(wrong_return_type(&self.name, &self.return_type));
+        if expected_return != Type::Null {
+            if let InterpreterResult::Returned(val) = result {
+                return Some(val);   
             }
-            res.unwrap()
-        };
-        match self.return_type {
-            Type::Number => {
-                self.call_stack.clear();
-                write(ptr as *mut f64, self.num(*expression));
-            },
-            Type::String => {
-                self.call_stack.clear();
-                write(ptr as *mut String, self.string(*expression));
-            },
-            _ => todo!(),
+            else {
+                self.end_with_error(func_has_no_return(&name))
+            }
         }
+        return None;
     }
     
     unsafe fn ifst(
@@ -502,7 +471,7 @@ impl<'a> Interpreter<'a> {
         &mut self,
         condition: Box<Ast>, 
         compound_statement: LinkedList<Box<Ast>>
-    ) {
+    ) -> InterpreterResult {
         let mut anon_func = GlkFuncDeclaration::new(
             compound_statement, 
             LinkedList::new(), 
@@ -523,9 +492,13 @@ impl<'a> Interpreter<'a> {
             if let InterpreterResult::Break = res {
                 break;
             }
+            if let InterpreterResult::Returned(_) = &res {
+                return res;
+            }
         }
         
         if_interpreter.end();
+        return InterpreterResult::End;
     }
 
     pub unsafe fn end(&mut self) {
@@ -548,8 +521,7 @@ impl<'a> Interpreter<'a> {
                         self.call_func(name, args, Type::Null);
                     }
                     Ast::Return { expression } => {
-                        self.retrn(expression);
-                        return InterpreterResult::Returned;
+                        return InterpreterResult::Returned(self.auto(*expression));
                     }
                     Ast::Function { name, args, return_type, compound_statement } => {
                         self.declare_function(name, args, return_type, compound_statement);
@@ -568,7 +540,10 @@ impl<'a> Interpreter<'a> {
                         }
                     }
                     Ast::While { condition, compound_statement } => {
-                        self.whilest(condition, compound_statement);
+                        let res = self.whilest(condition, compound_statement);
+                        if let InterpreterResult::Returned(_) = &res {
+                            return res;
+                        }
                     }
                     Ast::Break => {
                         return InterpreterResult::Break;

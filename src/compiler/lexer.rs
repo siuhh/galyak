@@ -19,7 +19,7 @@ pub struct Lexer<'a> {
 }
 
 fn is_ariphmetic_op(ch: &char) -> bool {
-    return ['+', '-', '/', '*'].contains(ch);
+    return ['+', '-', '/', '*', '%'].contains(ch);
 }
 
 fn is_symbol(ch: &char) -> bool {

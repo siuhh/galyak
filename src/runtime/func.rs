@@ -43,15 +43,9 @@ impl GlkFuncDeclaration {
     ) -> Self {
         let mut stack_reservation = init_stack_res(&call_stack);
         
-        //добавити на початок стеку аргументи
+        //добавити на початок стеку місце для аргументів
         for arg in &args {
             stack_reservation.push_back(arg.clone());
-        }
-        
-        if return_type != Type::Null {
-            //тут зберігається ретурн функції
-            let result_value = VarInfo { name: "#".to_string(), vtype: return_type };
-            stack_reservation.push_back(result_value);
         }
         
         return GlkFuncDeclaration { call_stack, stack_reservation, args, return_type, name };
